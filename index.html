@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amusement Park Master</title>
+<style>
+:root{--navy:#17243b;--blue:#3267e8;--sky:#eaf1ff;--gold:#ffcb55;--green:#15845b;--red:#c64b4b;--ink:#1f2a3d;--muted:#68758a;--line:#e4e9f1;--paper:#fff;--bg:#f4f7fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(115deg,#17243b,#254c9c);color:white;padding:25px max(22px,calc((100vw - 1180px)/2));position:relative;overflow:hidden}
+header:after{content:"🎡";position:absolute;right:8%;top:-20px;font-size:130px;opacity:.14;transform:rotate(-10deg)}
+.kicker{text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:800;color:#bcd0ff}h1{margin:4px 0 5px;font-size:clamp(28px,4vw,42px);letter-spacing:-.04em}header p{margin:0;color:#d9e4ff;max-width:650px}
+.wrap{max-width:1180px;margin:22px auto;padding:0 20px 40px}.topline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.day-pill{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 14px;font-weight:800}.day-pill span{color:var(--blue)}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:800;font-size:14px;cursor:pointer;transition:transform .12s,opacity .12s}button:hover{transform:translateY(-1px)}button:disabled{opacity:.45;cursor:not-allowed;transform:none}.primary{background:var(--blue);color:#fff;box-shadow:0 5px 12px #3267e82b}.secondary{background:#fff;border:1px solid var(--line);color:var(--ink)}.danger{color:var(--red);background:#fff0f0;border:1px solid #f4d6d6}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.stat{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:16px 17px;box-shadow:0 3px 12px #1b315608}.stat .label{color:var(--muted);font-size:12px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}.stat .value{font-size:clamp(22px,2.7vw,30px);font-weight:850;letter-spacing:-.04em;margin-top:5px}.stat .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(310px,.88fr);gap:18px;align-items:start}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 3px 12px #1b315608;margin-bottom:18px}.panel-head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-head h2{font-size:17px;margin:0;letter-spacing:-.02em}.panel-head p{font-size:12px;color:var(--muted);margin:3px 0 0}.panel-body{padding:18px 19px}
+.section-label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:850;margin:4px 0 12px}
+.price-row{display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #eef1f6}.price-row:last-child{border-bottom:0}.item-title{font-weight:800;display:flex;align-items:center;gap:9px}.item-icon{font-size:22px;width:30px;text-align:center}.item-desc{color:var(--muted);font-size:12px;margin:2px 0 0 39px}.price-control{display:flex;align-items:center;gap:5px}.price-control button{width:29px;height:34px;padding:0;background:#f0f4fb;color:#29416b;font-size:18px}.price-control input{width:62px;text-align:center;border:1px solid #dbe3ef;border-radius:8px;padding:8px 2px;font-weight:800;font-size:14px;color:var(--ink);background:#fff}.price-control input:focus{outline:2px solid #a9c1ff;border-color:var(--blue)}
+.budget-box{background:#f4f7ff;border:1px solid #dfe8ff;border-radius:12px;padding:14px;margin-top:10px}.budget-line{display:flex;justify-content:space-between;gap:12px;font-weight:800}.budget-box input[type=range]{width:100%;margin:13px 0 4px;accent-color:var(--blue)}.range-scale{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.budget-note{font-size:12px;color:var(--muted);margin-top:7px}
+.forecast{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.forecast-card{background:#f8fafc;border:1px solid var(--line);padding:12px;border-radius:11px}.forecast-card span{display:block;color:var(--muted);font-size:11px;font-weight:750;text-transform:uppercase}.forecast-card strong{font-size:19px;display:block;margin-top:4px}
+.action-area{padding:17px 19px;background:#fbfcff;border-top:1px solid var(--line)}.action-area button{width:100%;font-size:15px;padding:14px}.hint{font-size:12px;color:var(--muted);text-align:center;margin-top:9px}
+.log-empty{text-align:center;padding:32px 10px;color:var(--muted)}.log-empty .big{font-size:36px;margin-bottom:8px}.day-result{padding:15px 19px;background:#f3fbf7;border-bottom:1px solid #d8f0e4}.day-result.negative{background:#fff7f5;border-color:#f5ded8}.result-title{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:850}.profit{font-size:22px;color:var(--green)}.negative .profit{color:var(--red)}.result-sub{color:var(--muted);font-size:12px;margin-top:4px}
+.table-wrap{overflow:auto}.ledger{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px}.ledger th,.ledger td{padding:10px 12px;border-bottom:1px solid #edf0f5;text-align:right}.ledger th{background:#f8faff;color:#63718a;font-size:10px;text-transform:uppercase;letter-spacing:.06em}.ledger th:first-child,.ledger td:first-child{text-align:left}.ledger td:first-child{font-weight:800}.ledger tr:last-child td{border-bottom:0}.pos{color:var(--green);font-weight:800}.neg{color:var(--red);font-weight:800}
+.sales-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sales-card{border:1px solid var(--line);border-radius:11px;padding:12px}.sales-card h3{font-size:12px;text-transform:uppercase;color:var(--muted);margin:0 0 8px}.sale-line{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0}.sale-line strong{font-variant-numeric:tabular-nums}.notice{font-size:12px;color:var(--muted);padding:0 19px 15px}.toast{display:none;border-radius:10px;padding:11px 13px;margin-bottom:15px;font-weight:700;font-size:13px}.toast.show{display:block;background:#fff6df;color:#75530a;border:1px solid #f5df9d}.footer{color:#8792a5;text-align:center;font-size:11px;margin-top:12px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.wrap{padding:0 12px 28px}.panel-head,.panel-body{padding-left:14px;padding-right:14px}.price-row{grid-template-columns:minmax(0,1fr) 119px;gap:6px}.stats{gap:8px}.stat{padding:12px}.sales-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="kicker">Your park. Your decisions. Your legacy.</div><h1>🎢 Amusement Park Master</h1><p>Build a thriving amusement park one day at a time. Set prices, invest in marketing, delight your guests, and keep the books balanced.</p></header>
+<main class="wrap">
+  <div class="topline"><div class="day-pill">OPERATING DAY <span id="dayNumber">1</span> <span style="color:#9aa5b7">/ 30</span></div><div style="display:flex;gap:8px"><button class="secondary" id="newGameBtn">↻ New game</button><button class="secondary" id="exportBtn">Export ledger ↓</button></div></div>
+  <div id="toast" class="toast"></div>
+  <section class="stats">
+    <div class="stat"><div class="label">Cash in bank</div><div class="value" id="bankValue">$100.00</div><div class="sub" id="bankSub">Starting capital</div></div>
+    <div class="stat"><div class="label">Today's profit</div><div class="value" id="profitValue">—</div><div class="sub">Revenue minus all costs</div></div>
+    <div class="stat"><div class="label">Total guests today</div><div class="value" id="guestValue">—</div><div class="sub">Estimated attendance</div></div>
+    <div class="stat"><div class="label">Cumulative profit</div><div class="value" id="totalProfitValue">$0.00</div><div class="sub">Across completed days</div></div>
+  </section>
+  <div class="layout">
+    <div>
+      <section class="panel">
+        <div class="panel-head"><div><h2>🎟️ Daily business decisions</h2><p>Change your prices before opening the gates.</p></div><span class="day-pill" id="weather">☀️ Sunny</span></div>
+        <div class="panel-body">
+          <div class="section-label">Admission</div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🎫</span>Park admission</div><div class="item-desc">One ticket per guest · higher prices can reduce attendance</div></div><div class="price-control"><button data-adjust="admission" data-delta="-1">−</button><input id="admission" type="number" min="1" max="100" step="1" value="20" aria-label="Park admission price"><button data-adjust="admission" data-delta="1">+</button></div></div>
+          <div class="section-label" style="margin-top:20px">Ride prices · per ride</div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🎢</span>Roller coaster</div><div class="item-desc">Big thrills · operating cost $2 per ride</div></div><div class="price-control"><button data-adjust="coaster" data-delta="-0.5">−</button><input id="coaster" type="number" min="0" max="50" step=".5" value="6" aria-label="Roller coaster price"><button data-adjust="coaster" data-delta=".5">+</button></div></div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🏴‍☠️</span>Pirate ship</div><div class="item-desc">Family favorite · operating cost $1 per ride</div></div><div class="price-control"><button data-adjust="pirate" data-delta="-0.5">−</button><input id="pirate" type="number" min="0" max="50" step=".5" value="4" aria-label="Pirate ship price"><button data-adjust="pirate" data-delta=".5">+</button></div></div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">💦</span>Water gun</div><div class="item-desc">Splashy fun · operating cost $0.50 per play</div></div><div class="price-control"><button data-adjust="water" data-delta="-0.5">−</button><input id="water" type="number" min="0" max="50" step=".5" value="3" aria-label="Water gun price"><button data-adjust="water" data-delta=".5">+</button></div></div>
+          <div class="section-label" style="margin-top:20px">Food & drinks · per item</div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🌭</span>Hot dog</div><div class="item-desc">Ingredient cost $1.25 each</div></div><div class="price-control"><button data-adjust="hotdog" data-delta="-0.25">−</button><input id="hotdog" type="number" min=".25" max="25" step=".25" value="5" aria-label="Hot dog price"><button data-adjust="hotdog" data-delta=".25">+</button></div></div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🥤</span>Soda</div><div class="item-desc">Ingredient cost $0.50 each</div></div><div class="price-control"><button data-adjust="soda" data-delta="-0.25">−</button><input id="soda" type="number" min=".25" max="25" step=".25" value="3" aria-label="Soda price"><button data-adjust="soda" data-delta=".25">+</button></div></div>
+          <div class="price-row"><div><div class="item-title"><span class="item-icon">🍟</span>Fries</div><div class="item-desc">Ingredient cost $0.75 per serving</div></div><div class="price-control"><button data-adjust="fries" data-delta="-0.25">−</button><input id="fries" type="number" min=".25" max="25" step=".25" value="4" aria-label="Fries price"><button data-adjust="fries" data-delta=".25">+</button></div></div>
+          <div class="section-label" style="margin-top:20px">Marketing</div>
+          <div class="budget-box"><div class="budget-line"><label for="marketing">Daily marketing budget</label><strong id="marketingLabel">$10</strong></div><input type="range" id="marketing" min="0" max="100" step="5" value="10"><div class="range-scale"><span>$0</span><span>$50</span><span>$100</span></div><div class="budget-note">Marketing attracts more visitors, but spend carefully. The budget is deducted whether or not it pays off.</div></div>
+          <div class="forecast"><div class="forecast-card"><span>Estimated attendance</span><strong id="forecastGuests">~25 guests</strong></div><div class="forecast-card"><span>Price appeal</span><strong id="appeal">Good value</strong></div></div>
+        </div>
+        <div class="action-area"><button class="primary" id="openBtn">Open the park · Run Day 1 →</button><div class="hint">Your choices are locked for the day once the park opens.</div></div>
+      </section>
+      <section class="panel"><div class="panel-head"><div><h2>📒 Daily financial ledger</h2><p>Full breakdown of revenue, expenses, and inventory sold.</p></div></div><div id="ledgerContent"><div class="log-empty"><div class="big">🧾</div><strong>Your ledger is ready</strong><div>Open the park to record your first day.</div></div></div></section>
+    </div>
+    <div>
+      <section class="panel"><div class="panel-head"><div><h2>📊 Latest day report</h2><p id="reportSubtitle">Waiting for your first operating day</p></div></div><div id="reportContent"><div class="log-empty"><div class="big">🎟️</div><strong>No guests yet</strong><div>Set your prices and open the park.</div></div></div></section>
+      <section class="panel"><div class="panel-head"><div><h2>🏆 Park performance</h2><p>Your results across the full 30-day season.</p></div></div><div class="panel-body"><div class="sales-grid">
+        <div class="sales-card"><h3>Revenue totals</h3><div class="sale-line"><span>Admission</span><strong id="sumAdmission">$0.00</strong></div><div class="sale-line"><span>Rides</span><strong id="sumRides">$0.00</strong></div><div class="sale-line"><span>Food & drinks</span><strong id="sumFood">$0.00</strong></div></div>
+        <div class="sales-card"><h3>Cost totals</h3><div class="sale-line"><span>Ride operations</span><strong id="sumOps">$0.00</strong></div><div class="sale-line"><span>Food supplies</span><strong id="sumSupplies">$0.00</strong></div><div class="sale-line"><span>Marketing</span><strong id="sumMarketing">$0.00</strong></div></div>
+      </div><div style="margin-top:14px;border-top:1px solid var(--line);padding-top:13px"><div class="budget-line"><span>Season net profit</span><strong id="sumProfit">$0.00</strong></div><div class="budget-line" style="margin-top:8px"><span>Guests served</span><strong id="sumGuests">0</strong></div><div class="budget-line" style="margin-top:8px"><span>Days completed</span><strong id="sumDays">0 / 30</strong></div></div></div></section>
+      <section class="panel"><div class="panel-head"><div><h2>💡 How to play</h2><p>Think like a park manager.</p></div></div><div class="panel-body" style="font-size:13px;color:#536178"><p style="margin-top:0">1. <b>Set admission.</b> High ticket prices earn more per guest but can keep families away.</p><p>2. <b>Price rides and food.</b> Guests are more likely to buy when prices feel fair. Every sale has a cost.</p><p>3. <b>Choose marketing.</b> More advertising can increase attendance, but it comes straight out of your bank.</p><p>4. <b>Watch cash flow.</b> Profit is added to your bank balance. If your bank runs out, keep prices and marketing sustainable.</p><p style="margin-bottom:0">5. <b>Play 30 days.</b> Build your bank balance and compare daily reports to learn what works.</p></div></section>
+    </div>
+  </div>
+  <div class="footer">Amusement Park Master · A management simulation · All amounts in USD · Game saves in this browser</div>
+</main>
+<script>
+(() => {
+const DAYS=30, START=100;
+const defaults={admission:20,coaster:6,pirate:4,water:3,hotdog:5,soda:3,fries:4,marketing:10};
+const names={admission:"Park admission",coaster:"Roller coaster",pirate:"Pirate ship",water:"Water gun",hotdog:"Hot dog",soda:"Soda",fries:"Fries"};
+const costs={coaster:2,pirate:1,water:.5,hotdog:1.25,soda:.5,fries:.75};
+const $=id=>document.getElementById(id);
+let state;
+const money=n=>n.toLocaleString("en-US",{style:"currency",currency:"USD"});
+const number=n=>Math.round(n).toLocaleString("en-US");
+const round=n=>Math.round((n+Number.EPSILON)*100)/100;
+function load(){try{const s=JSON.parse(localStorage.getItem("apmSave"));if(s&&s.history&&typeof s.bank==="number")return s}catch(e){}return {bank:START,day:1,history:[],last:null};}
+function save(){try{localStorage.setItem("apmSave",JSON.stringify(state))}catch(e){}}
+function getPrices(){let p={};for(const k of Object.keys(defaults)){if(k==="marketing")p[k]=+$("marketing").value;else p[k]=Math.max(0,Number($(k).value)||0)}return p}
+function setPrices(p){for(const k of Object.keys(defaults))if($(k))$(k).value=p[k];$("marketingLabel").textContent=money(+p.marketing).replace(".00","")}
+function weatherFor(day){return [{name:"Sunny",icon:"☀️",factor:1.12},{name:"Cloudy",icon:"☁️",factor:.94},{name:"Hot",icon:"🌤️",factor:1.18},{name:"Showers",icon:"🌦️",factor:.72},{name:"Perfect",icon:"🌈",factor:1.25}][(day*7+3)%5]}
+function calculate(p,day,weather){
+ const ticketRatio=p.admission/20;
+ const rideAvg=(p.coaster/6+p.pirate/4+p.water/3)/3;
+ const foodAvg=(p.hotdog/5+p.soda/3+p.fries/4)/3;
+ const priceIndex=.54*Math.pow(Math.max(.15,ticketRatio),-.78)+.25*Math.pow(Math.max(.15,rideAvg),-.36)+.21*Math.pow(Math.max(.15,foodAvg),-.32);
+ const marketingBoost=1+Math.min(.8,Math.sqrt(p.marketing)*.045);
+ const dayTrend=1+(day-1)*.008;
+ const guests=Math.max(0,Math.round(28*priceIndex*marketingBoost*weather.factor*dayTrend));
+ const rideRate=k=>Math.max(.03,Math.min(.95,(k==="coaster"?.42:k==="pirate"?.52:.65)*Math.pow(Math.max(.1,({coaster:6,pirate:4,water:3}[k])/Math.max(.25,p[k])),.62)));
+ const rides={coaster:Math.round(guests*rideRate("coaster")),pirate:Math.round(guests*rideRate("pirate")),water:Math.round(guests*rideRate("water"))};
+ const foodRate=k=>Math.max(.05,Math.min(.98,(k==="hotdog"?.48:k==="soda"?.68:.43)*Math.pow(Math.max(.1,({hotdog:5,soda:3,fries:4}[k])/Math.max(.25,p[k])),.35)));
+ const food={hotdog:Math.round(guests*foodRate("hotdog")),soda:Math.round(guests*foodRate("soda")),fries:Math.round(guests*foodRate("fries"))};
+ const admissionRev=guests*p.admission;
+ const rideRev=Object.keys(rides).reduce((s,k)=>s+rides[k]*p[k],0);
+ const foodRev=Object.keys(food).reduce((s,k)=>s+food[k]*p[k],0);
+ const rideCost=Object.keys(rides).reduce((s,k)=>s+rides[k]*costs[k],0);
+ const supplyCost=Object.keys(food).reduce((s,k)=>s+food[k]*costs[k],0);
+ const revenue=round(admissionRev+rideRev+foodRev), expenses=round(rideCost+supplyCost+p.marketing), profit=round(revenue-expenses);
+ return {day,weather:weather.name,weatherIcon:weather.icon,prices:p,guests,rides,food,admissionRev:round(admissionRev),rideRev:round(rideRev),foodRev:round(foodRev),revenue,rideCost:round(rideCost),supplyCost:round(supplyCost),marketingCost:p.marketing,expenses,profit,bankBefore:state.bank,bankAfter:round(state.bank+profit)};
+}
+function preview(){const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);$("forecastGuests").textContent="~"+number(r.guests)+" guests";let idx=(p.admission/20)*.6+(Object.keys(costs).reduce((s,k)=>s+p[k]/({coaster:6,pirate:4,water:3,hotdog:5,soda:3,fries:4}[k]),0)/6)*.4; $("appeal").textContent=idx<.72?"Budget-friendly":idx<1.18?"Good value":"Premium pricing";$("weather").textContent=w.icon+" "+w.name;$("marketingLabel").textContent=money(p.marketing).replace(".00","");}
+function render(){
+ const done=state.history.length, last=state.last;
+ $("dayNumber").textContent=Math.min(state.day,DAYS);$("bankValue").textContent=money(state.bank);$("bankSub").textContent=state.bank<0?"Negative cash flow":state.bank<25?"Low cash reserve":done?"After "+done+" operating day"+(done===1?"":"s"):"Starting capital";
+ $("profitValue").textContent=last?money(last.profit):"—";$("profitValue").style.color=last?(last.profit>=0?"var(--green)":"var(--red)"):"var(--ink)";
+ $("guestValue").textContent=last?number(last.guests):"—";
+ const totalProfit=round(state.bank-START);$("totalProfitValue").textContent=money(totalProfit);$("totalProfitValue").style.color=totalProfit>=0?"var(--green)":"var(--red)";
+ $("openBtn").disabled=state.day>DAYS;$("openBtn").textContent=state.day>DAYS?"Season complete ✓":"Open the park · Run Day "+state.day+" →";
+ for(const k of Object.keys(defaults))$(k).disabled=state.day>DAYS;
+ $("marketing").disabled=state.day>DAYS;
+ const sums={admission:0,rides:0,food:0,ops:0,supplies:0,marketing:0,profit:0,guests:0};
+ state.history.forEach(r=>{sums.admission+=r.admissionRev;sums.rides+=r.rideRev;sums.food+=r.foodRev;sums.ops+=r.rideCost;sums.supplies+=r.supplyCost;sums.marketing+=r.marketingCost;sums.profit+=r.profit;sums.guests+=r.guests});
+ $("sumAdmission").textContent=money(sums.admission);$("sumRides").textContent=money(sums.rides);$("sumFood").textContent=money(sums.food);$("sumOps").textContent=money(sums.ops);$("sumSupplies").textContent=money(sums.supplies);$("sumMarketing").textContent=money(sums.marketing);$("sumProfit").textContent=money(sums.profit);$("sumProfit").className=sums.profit>=0?"pos":"neg";$("sumGuests").textContent=number(sums.guests);$("sumDays").textContent=done+" / "+DAYS;
+ renderReport();renderLedger();preview();
+}
+function renderReport(){const r=state.last;if(!r){$("reportContent").innerHTML='<div class="log-empty"><div class="big">🎟️</div><strong>No guests yet</strong><div>Set your prices and open the park.</div></div>';$("reportSubtitle").textContent="Waiting for your first operating day";return}
+ $("reportSubtitle").textContent="Operating day "+r.day+" · "+r.weatherIcon+" "+r.weather;
+ $("reportContent").innerHTML=`<div class="day-result ${r.profit<0?"negative":""}"><div class="result-title"><span>Day ${r.day} net profit</span><span class="profit">${r.profit>=0?"+":""}${money(r.profit)}</span></div><div class="result-sub">${number(r.guests)} guests · Bank after close: <b>${money(r.bankAfter)}</b></div></div><div class="panel-body"><div class="sales-grid"><div class="sales-card"><h3>Revenue</h3><div class="sale-line"><span>Admission (${number(r.guests)} tickets)</span><strong>${money(r.admissionRev)}</strong></div><div class="sale-line"><span>Ride sales</span><strong>${money(r.rideRev)}</strong></div><div class="sale-line"><span>Food & drink sales</span><strong>${money(r.foodRev)}</strong></div><div class="sale-line" style="border-top:1px solid var(--line);margin-top:5px;padding-top:8px"><b>Total</b><strong>${money(r.revenue)}</strong></div></div><div class="sales-card"><h3>Expenses</h3><div class="sale-line"><span>Ride operations</span><strong>${money(r.rideCost)}</strong></div><div class="sale-line"><span>Food supplies</span><strong>${money(r.supplyCost)}</strong></div><div class="sale-line"><span>Marketing</span><strong>${money(r.marketingCost)}</strong></div><div class="sale-line" style="border-top:1px solid var(--line);margin-top:5px;padding-top:8px"><b>Total</b><strong>${money(r.expenses)}</strong></div></div></div><div style="margin-top:16px"><div class="section-label">Items sold today</div><div class="sale-line"><span>🎢 Roller coaster rides</span><strong>${number(r.rides.coaster)} × ${money(r.prices.coaster)}</strong></div><div class="sale-line"><span>🏴‍☠️ Pirate ship rides</span><strong>${number(r.rides.pirate)} × ${money(r.prices.pirate)}</strong></div><div class="sale-line"><span>💦 Water gun plays</span><strong>${number(r.rides.water)} × ${money(r.prices.water)}</strong></div><div class="sale-line"><span>🌭 Hot dogs</span><strong>${number(r.food.hotdog)} × ${money(r.prices.hotdog)}</strong></div><div class="sale-line"><span>🥤 Sodas</span><strong>${number(r.food.soda)} × ${money(r.prices.soda)}</strong></div><div class="sale-line"><span>🍟 Fries</span><strong>${number(r.food.fries)} × ${money(r.prices.fries)}</strong></div></div></div>`}
+function renderLedger(){const rows=state.history;if(!rows.length){$("ledgerContent").innerHTML='<div class="log-empty"><div class="big">🧾</div><strong>Your ledger is ready</strong><div>Open the park to record your first day.</div></div>';return}
+ let html='<div class="table-wrap"><table class="ledger"><thead><tr><th>Day</th><th>Guests</th><th>Revenue</th><th>Expenses</th><th>Profit</th><th>Bank balance</th></tr></thead><tbody>';
+ for(const r of [...rows].reverse())html+=`<tr><td>Day ${r.day}</td><td>${number(r.guests)}</td><td>${money(r.revenue)}</td><td>${money(r.expenses)}</td><td class="${r.profit>=0?"pos":"neg"}">${r.profit>=0?"+":""}${money(r.profit)}</td><td><b>${money(r.bankAfter)}</b></td></tr>`;
+ html+='</tbody></table></div><div class="panel-body"><div class="section-label">Latest day · detailed breakdown</div>';
+ const r=state.last;
+ html+=`<div class="sales-grid"><div class="sales-card"><h3>Revenue by source</h3><div class="sale-line"><span>Admission</span><strong>${money(r.admissionRev)}</strong></div><div class="sale-line"><span>Rides</span><strong>${money(r.rideRev)}</strong></div><div class="sale-line"><span>Food & drinks</span><strong>${money(r.foodRev)}</strong></div><div class="sale-line"><b>Total revenue</b><strong>${money(r.revenue)}</strong></div></div><div class="sales-card"><h3>Costs by source</h3><div class="sale-line"><span>Ride operations</span><strong>${money(r.rideCost)}</strong></div><div class="sale-line"><span>Food supplies</span><strong>${money(r.supplyCost)}</strong></div><div class="sale-line"><span>Marketing</span><strong>${money(r.marketingCost)}</strong></div><div class="sale-line"><b>Total expenses</b><strong>${money(r.expenses)}</strong></div></div></div><div style="margin-top:12px;font-size:12px;color:var(--muted)">Prices used: admission ${money(r.prices.admission)} · coaster ${money(r.prices.coaster)} · pirate ship ${money(r.prices.pirate)} · water gun ${money(r.prices.water)} · hot dog ${money(r.prices.hotdog)} · soda ${money(r.prices.soda)} · fries ${money(r.prices.fries)} · marketing ${money(r.prices.marketing)}.</div></div>`;
+ $("ledgerContent").innerHTML=html}
+function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),3500)}
+function runDay(){if(state.day>DAYS)return;const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);state.bank=r.bankAfter;state.last=r;state.history.push(r);state.day++;save();render();if(state.day>DAYS)toast("Season complete! Your final bank balance is "+money(state.bank)+". Export your ledger or start a new season.");else toast("Day "+r.day+" closed. Net "+(r.profit>=0?"profit ":"loss ")+money(Math.abs(r.profit))+".");}
+document.querySelectorAll("[data-adjust]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.adjust,step=Number(b.dataset.delta),el=$(k),min=Number(el.min),max=Number(el.max);el.value=Math.min(max,Math.max(min,round((Number(el.value)||0)+step)));preview()}));
+Object.keys(defaults).forEach(k=>$(k).addEventListener("input",preview));
+$("openBtn").addEventListener("click",runDay);
+$("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,day:1,history:[],last:null};setPrices(defaults);save();render();toast("New season started. You have $100 in starting capital.");}});
+$("exportBtn").addEventListener("click",()=>{if(!state.history.length){toast("Complete at least one operating day before exporting.");return}const cols=["Day","Weather","Guests","Admission Price","Coaster Price","Pirate Ship Price","Water Gun Price","Hot Dog Price","Soda Price","Fries Price","Marketing Budget","Admission Revenue","Ride Revenue","Food Revenue","Total Revenue","Ride Costs","Food Supply Costs","Marketing Cost","Total Expenses","Net Profit","Bank Before","Bank After","Coaster Rides Sold","Pirate Ship Rides Sold","Water Gun Plays Sold","Hot Dogs Sold","Sodas Sold","Fries Sold"];const lines=[cols.join(",")];for(const r of state.history){const p=r.prices;const vals=[r.day,r.weather,r.guests,p.admission,p.coaster,p.pirate,p.water,p.hotdog,p.soda,p.fries,p.marketing,r.admissionRev,r.rideRev,r.foodRev,r.revenue,r.rideCost,r.supplyCost,r.marketingCost,r.expenses,r.profit,r.bankBefore,r.bankAfter,r.rides.coaster,r.rides.pirate,r.rides.water,r.food.hotdog,r.food.soda,r.food.fries];lines.push(vals.map(v=>String(v).includes(",")?'"'+String(v).replaceAll('"','""')+'"':v).join(","))}const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="amusement-park-master-ledger.csv";a.click();URL.revokeObjectURL(url);});
+state=load();setPrices(state.history.length?state.history[state.history.length-1].prices:defaults);if(state.day>DAYS)setPrices(state.history[state.history.length-1]?.prices||defaults);render();
+})();
+</script>
+</body>
+</html>
