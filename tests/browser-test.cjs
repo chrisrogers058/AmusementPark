@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
  const check=async(c,msg)=>{if(!c)throw Error(msg)};
  await check(await page.locator('#openBtn').isEnabled(),'Open park button disabled');
  await page.locator('[data-adjust="admission"][data-delta="1"]').click();
- await check(await page.locator('#admission').inputValue()==='21','Admission + button failed');
+ console.log('admission after +',await page.locator('#admission').inputValue(),'errors',errors);await check(await page.locator('#admission').inputValue()==='21','Admission + button failed');
  await page.locator('[data-adjust="admission"][data-delta="-1"]').click();
  await check(await page.locator('#admission').inputValue()==='20','Admission - button failed');
  await page.locator('#marketing').fill('25');
