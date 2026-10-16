@@ -181,7 +181,7 @@ function render(){
  $("profitValue").textContent=last?money(last.profit):"—";$("profitValue").style.color=last?(last.profit>=0?"var(--green)":"var(--red)"):"var(--ink)";
  $("guestValue").textContent=last?number(last.guests):"—";
  const totalProfit=round(state.bank-START);$("totalProfitValue").textContent=money(totalProfit);$("totalProfitValue").style.color=totalProfit>=0?"var(--green)":"var(--red)";
- $("openBtn").disabled=state.day>DAYS;$("openBtn").textContent=state.day>DAYS?"Season complete ✓":"▶ Open park · Day "+state.day";
+ $("openBtn").disabled=state.day>DAYS;$("openBtn").textContent=state.day>DAYS?"Season complete ✓":"▶ Open park · Day "+state.day;
  for(const k of Object.keys(defaults))$(k).disabled=state.day>DAYS;
  $("marketing").disabled=state.day>DAYS;
  const sums={admission:0,rides:0,food:0,ops:0,supplies:0,marketing:0,profit:0,guests:0};
