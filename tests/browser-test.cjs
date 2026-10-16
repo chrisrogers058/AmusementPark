@@ -36,6 +36,38 @@ const { chromium } = require('playwright');
  await check((await page.locator('#dayNumber').innerText())==='1','Reset failed');
  await check((await page.locator('#rideCount').innerText()).startsWith('0'),'Ride reset failed');
  await check((await page.locator('#upgradeCount').innerText()).startsWith('0'),'Upgrade reset failed');
+
+ // Exhaustively exercise each price +/- control and each ride/upgrade purchase button.
+ await page.evaluate(()=>{localStorage.setItem('apmSave',JSON.stringify({bank:10000,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]}));});
+ await page.reload();
+ for(const id of ['admission','coaster','pirate','water','hotdog','soda','fries']){
+   const before=Number(await page.locator('#'+id).inputValue());
+   await page.locator('[data-adjust="'+id+'"][data-delta]:last-of-type').click();
+   const increased=Number(await page.locator('#'+id).inputValue());
+   await check(increased>before,id+' increase failed');
+   await page.locator('[data-adjust="'+id+'"][data-delta]:first-of-type').click();
+   await check(Number(await page.locator('#'+id).inputValue())===before,id+' decrease failed');
+ }
+ for(const category of ['Family','Thrill','Junior','All']){
+   await page.locator('#rideTabs [data-category="'+category+'"]').click();
+   await check(await page.locator('#rideCatalog .ride-tile').count()===(category==='All'?12:4),category+' tab failed');
+ }
+ for(const id of ['paths1','paths2','green1','green2','market1','market2']){
+   const btn=page.locator('[data-upgrade="'+id+'"]');
+   await check(await btn.isEnabled(),id+' purchase disabled unexpectedly');
+   await btn.click();
+   await check(await btn.isDisabled(),id+' not marked purchased');
+ }
+ for(const id of ['carousel','ferris','train','bumper','drop','loop','swing','rapids','cups','mini','planes','frogs']){
+   const btn=page.locator('[data-build="'+id+'"]');
+   await check(await btn.isEnabled(),id+' build disabled unexpectedly');
+   await btn.click();
+   await check(await btn.isDisabled(),id+' not marked built');
+ }
+ await check((await page.locator('#rideCount').innerText()).startsWith('12'),'Not all rides constructed');
+ await check((await page.locator('#upgradeCount').innerText()).startsWith('6'),'Not all upgrades purchased');
+ await page.locator('#openBtn').click();
+ await check((await page.locator('#reportContent').innerText()).includes('Carousel'),'All-built ride report failed');
  await page.setViewportSize({width:390,height:844});
  await check(await page.locator('#openBtn').isVisible(),'Mobile open button invisible');
  await check(errors.length===0,'Browser errors: '+errors.join(' | '));
