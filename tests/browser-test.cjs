@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
  const page=await browser.newPage({viewport:{width:1366,height:900},acceptDownloads:true});
  const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('JS ERROR STACK',e.stack)});
  await page.goto('file://'+process.cwd()+'/index.html');
- const html=require('fs').readFileSync('index.html','utf8');const js=html.match(/<script>([\\s\\S]*?)<\\/script>/)[1];try{new(require('vm').Script)(js)}catch(e){console.log('SCRIPT SYNTAX',e.stack);throw e;}
+ const html=require('fs').readFileSync('index.html','utf8');const js=html.split('<script>')[1].split('</script>')[0];try{new(require('vm').Script)(js)}catch(e){console.log('SCRIPT SYNTAX',e.stack);throw e;}
  const check=async(c,msg)=>{if(!c)throw Error(msg)};
  await check(await page.locator('#openBtn').isEnabled(),'Open park button disabled');
  await page.locator('[data-adjust="admission"][data-delta="1"]').click();
