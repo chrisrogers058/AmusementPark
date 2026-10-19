@@ -51,6 +51,9 @@ button{font-size:16px;min-height:42px}
 .park-scene{height:210px}
 #helpPanel .panel-body{display:none}#helpPanel .panel-head{border-bottom:0}#helpPanel .panel-head p{display:none}
 @media(max-width:520px){body{font-size:16px}.price-row{grid-template-columns:minmax(0,1fr) 135px}.item-title{font-size:15px}.stats{gap:9px}.stat{padding:12px}.stat .label{font-size:12px}.stat .value{font-size:24px}.panel-head h2{font-size:19px}.ride-catalog,.upgrade-grid{grid-template-columns:1fr}}
+
+/* Focused navigation: a single decision screen at a time. */
+.game-nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.game-nav button[aria-selected=true]{background:var(--blue);color:white}.layout{display:block}.game-screen[hidden]{display:none}.game-screen{max-width:1050px;margin:auto}.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.dashboard-grid .panel{margin:0 0 18px}.park-scene{height:300px}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #ffb400;outline-offset:3px}.game-nav button{flex:1}.table-wrap{max-width:100%}.sale-line{flex-wrap:wrap}.wrap{overflow-wrap:anywhere}#helpPanel .panel-body{display:block}#helpPanel{display:none}.game-screen h2:focus{outline:none}@media(max-width:700px){.dashboard-grid{grid-template-columns:1fr}.game-nav button{padding:10px 6px;font-size:15px}.stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -207,12 +210,28 @@ document.addEventListener("click",e=>{const btn=e.target.closest("[data-upgrade]
 document.addEventListener("click",e=>{const tab=e.target.closest("[data-category]");if(tab){rideCategory=tab.dataset.category;renderRides();return}const btn=e.target.closest("[data-build]");if(!btn)return;const ride=catalog.find(r=>r.id===btn.dataset.build);if(!ride||state.day>DAYS||state.builtRides?.[ride.id]||state.bank<ride.build)return;ensureRides();state.bank=round(state.bank-ride.build);state.builtRides[ride.id]={price:ride.price};state.purchases.push({day:state.day,ride:ride.id,cost:ride.build});save();render();toast(ride.name+" built for "+money(ride.build)+"!");});
 document.addEventListener("change",e=>{const el=e.target.closest("[data-ride-price]");if(!el)return;const ride=catalog.find(r=>r.id===el.dataset.ridePrice);if(!ride||!state.builtRides?.[ride.id])return;const price=Math.min(50,Math.max(0,Math.round((Number(el.value)||0)*2)/2));state.builtRides[ride.id].price=price;save();renderRides();});
 function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),3500)}
-function runDay(){if(state.day>DAYS)return;const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);state.bank=r.bankAfter;state.last=r;state.history.push(r);state.day++;save();render();if(state.day>DAYS)toast("Season complete! Your final bank balance is "+money(state.bank)+". Export your ledger or start a new season.");else toast("Day "+r.day+" closed. Net "+(r.profit>=0?"profit ":"loss ")+money(Math.abs(r.profit))+".");}
+function runDay(){if(state.day>DAYS)return;const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);state.bank=r.bankAfter;state.last=r;state.history.push(r);state.day++;save();render();if(state.day>DAYS)toast("Season complete! Your final bank balance is "+money(state.bank)+". Export your ledger or start a new season.");else showScreen("reports");toast("Day "+r.day+" closed. Net "+(r.profit>=0?"profit ":"loss ")+money(Math.abs(r.profit))+".");}
 document.querySelectorAll("[data-adjust]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.adjust,step=Number(b.dataset.delta),el=$(k),min=Number(el.min),max=Number(el.max);el.value=Math.min(max,Math.max(min,round((Number(el.value)||0)+step)));preview()}));
 Object.keys(defaults).forEach(k=>$(k).addEventListener("input",preview));
 $("openBtn").addEventListener("click",runDay);
 $("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);save();render();toast("New season started. You have $100 in starting capital.");}});
 $("exportBtn").addEventListener("click",()=>{if(!state.history.length){toast("Complete at least one operating day before exporting.");return}const cols=["Day","Weather","Guests","Admission Price","Coaster Price","Pirate Ship Price","Water Gun Price","Hot Dog Price","Soda Price","Fries Price","Marketing Budget","Admission Revenue","Ride Revenue","Food Revenue","Total Revenue","Ride Costs","Food Supply Costs","Marketing Cost","Total Expenses","Net Profit","Bank Before","Bank After","Coaster Rides Sold","Pirate Ship Rides Sold","Water Gun Plays Sold","Hot Dogs Sold","Sodas Sold","Fries Sold"];const lines=[cols.join(",")];for(const r of state.history){const p=r.prices;const vals=[r.day,r.weather,r.guests,p.admission,p.coaster,p.pirate,p.water,p.hotdog,p.soda,p.fries,p.marketing,r.admissionRev,r.rideRev,r.foodRev,r.revenue,r.rideCost,r.supplyCost,r.marketingCost,r.expenses,r.profit,r.bankBefore,r.bankAfter,r.rides.coaster,r.rides.pirate,r.rides.water,r.food.hotdog,r.food.soda,r.food.fries];lines.push(vals.map(v=>String(v).includes(",")?'"'+String(v).replaceAll('"','""')+'"':v).join(","))}const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="amusement-park-master-ledger.csv";a.click();URL.revokeObjectURL(url);});
+function setupDashboard(){
+ const layout=document.querySelector('.layout'), panels=[...layout.querySelectorAll('section.panel')];
+ const nav=document.createElement('nav');nav.className='game-nav';nav.setAttribute('aria-label','Park management');
+ const screens={};
+ for(const [id,label] of [['park','🎡 Park'],['prices','🎟️ Prices'],['build','🛠️ Build'],['reports','📊 Reports']]){
+ const button=document.createElement('button');button.className='secondary';button.id='nav-'+id;button.textContent=label;button.setAttribute('aria-controls','screen-'+id);button.setAttribute('aria-selected',String(id==='park'));button.addEventListener('click',()=>showScreen(id));nav.append(button);
+ const screen=document.createElement('section');screen.id='screen-'+id;screen.className='game-screen';screen.setAttribute('aria-label',label);screen.hidden=id!=='park';screens[id]=screen;
+ }
+ const pricing=panels[0],upgradesPanel=panels[1],ridesPanel=panels[2],history=panels[3],scene=panels[4],report=panels[5],totals=panels[6];
+ screens.park.append(scene,document.querySelector('.action-area'));
+ const tip=document.createElement('p');tip.textContent='Set prices → choose an investment → open the park. Review your results in Reports.';screens.park.prepend(tip);
+ screens.prices.append(pricing);screens.build.append(ridesPanel,upgradesPanel);screens.reports.append(report,history,totals);
+ layout.replaceChildren(...Object.values(screens));layout.before(nav);
+}
+function showScreen(id){document.querySelectorAll('.game-screen').forEach(el=>el.hidden=el.id!=='screen-'+id);document.querySelectorAll('.game-nav button').forEach(el=>el.setAttribute('aria-selected',String(el.id==='nav-'+id)));}
+setupDashboard();
 state=load();ensureRides();state.upgrades=state.upgrades||{};state.upgradePurchases=state.upgradePurchases||[];setPrices(state.history.length?state.history[state.history.length-1].prices:defaults);if(state.day>DAYS)setPrices(state.history[state.history.length-1]?.prices||defaults);render();
 })();
 </script>
