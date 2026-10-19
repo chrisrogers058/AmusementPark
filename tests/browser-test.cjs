@@ -10,7 +10,8 @@ const fs=require('fs'),assert=require('node:assert/strict');
  fs.mkdirSync('test-results',{recursive:true});
  try{
  await page.goto('file://'+process.cwd()+'/index.html');
- assert(await page.locator('#openBtn').isVisible());
+ assert(await page.locator('#openBtn').isVisible());assert.equal(await page.locator('.park-map').count(),1);assert(await page.locator('.park-map path').count()>25);
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.map-wheel').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
  for(const id of ['prices','build','reports','park']){await go(id);assert(await page.locator('#screen-'+id).isVisible())}
  await go('prices');if(await page.locator('#advancedPrices').count())await page.locator('#advancedPrices summary').click();
  for(const id of ['admission','coaster','pirate','water','hotdog','soda','fries']){
