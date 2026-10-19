@@ -30,3 +30,5 @@ for(const difficulty of ['normal','expert']){
  }
  console.log({strategy:'invest with reserve',difficulty,cash:s.bank,happiness:s.satisfaction});assert(s.bank>=e.modes[difficulty].goal&&s.satisfaction>=e.modes[difficulty].happiness,'A disciplined investment strategy must be able to win '+difficulty);
 }
+
+s=fresh('normal');s.builtRides={cups:{price:3}};e.setState(s);const fairRide=e.calculate(e.defaults,1,e.weatherFor(1));s.builtRides.cups.price=50;const gouged=e.calculate(e.defaults,1,e.weatherFor(1));assert(gouged.extraRides.cups.revenue<fairRide.extraRides.cups.revenue,'Custom ride prices must not offer unlimited revenue');

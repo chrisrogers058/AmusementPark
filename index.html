@@ -180,7 +180,7 @@ function calculate(p,day,weather){
  const supplyCost=Object.keys(food).reduce((s,k)=>s+food[k]*costs[k],0);
  const added={};let addedRev=0,addedCost=0;
  const maintenanceRide=day%9===0?catalog.find(ride=>state.builtRides?.[ride.id]):null;
- for(const ride of catalog){const built=state.builtRides?.[ride.id];if(!built)continue;const price=Math.max(0,Number(built.price)||0);const rate=Math.max(0,Math.min(.9,ride.rate*Math.pow(ride.price/Math.max(.25,price),.55)));const sold=maintenanceRide?.id===ride.id?0:Math.min(Math.round(guests*rate),Math.max(0,guests*2-Object.values(added).reduce((sum,r)=>sum+r.sold,0)));added[ride.id]={name:ride.name,sold,price,revenue:round(sold*price),cost:round(sold*ride.cost)};addedRev+=sold*price;addedCost+=sold*ride.cost;}
+ for(const ride of catalog){const built=state.builtRides?.[ride.id];if(!built)continue;const price=Math.max(0,Number(built.price)||0);const rate=Math.max(0,Math.min(.9,ride.rate*Math.exp(-1.4*(price/ride.price-1))));const sold=maintenanceRide?.id===ride.id?0:Math.min(Math.round(guests*rate),Math.max(0,guests*2-Object.values(added).reduce((sum,r)=>sum+r.sold,0)));added[ride.id]={name:ride.name,sold,price,revenue:round(sold*price),cost:round(sold*ride.cost)};addedRev+=sold*price;addedCost+=sold*ride.cost;}
  const fixedBreakdown={staff:450,maintenance:190+Object.keys(state.builtRides||{}).length*9,utilities:130,insurance:80};for(const k of Object.keys(fixedBreakdown))fixedBreakdown[k]=round(fixedBreakdown[k]*mode().cost);
  const fixedCost=round(Object.values(fixedBreakdown).reduce((a,b)=>a+b,0));
  const repairCost=round(((day%7===0?45:0)+(maintenanceRide?70:0))*mode().cost);
