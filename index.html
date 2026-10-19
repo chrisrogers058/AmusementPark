@@ -107,7 +107,7 @@ button{font-size:16px;min-height:42px}
 <script>
 (() => {
 const DAYS=30, START=100;
-const modes={easy:{label:'Easy',start:100,cost:.70,sensitivity:1.55,goal:7000,happiness:60},normal:{label:'Normal',start:100,cost:1,sensitivity:1.9,goal:4500,happiness:65},expert:{label:'Expert',start:100,cost:1.18,sensitivity:2.25,goal:2200,happiness:70}};
+const modes={easy:{label:'Easy',start:100,cost:.70,sensitivity:1.55,goal:10000,happiness:60},normal:{label:'Normal',start:100,cost:1,sensitivity:1.9,goal:7500,happiness:65},expert:{label:'Expert',start:100,cost:1.12,sensitivity:2.25,goal:5000,happiness:70}};
 function mode(){return modes[state?.difficulty]||modes.normal}
 function gameOver(){return state.day>DAYS||state.bank<0}
 const catalog=[
@@ -146,8 +146,8 @@ let state;
 const money=n=>n.toLocaleString("en-US",{style:"currency",currency:"USD"});
 const number=n=>Math.round(n).toLocaleString("en-US");
 const round=n=>Math.round((n+Number.EPSILON)*100)/100;
-function load(){try{const s=JSON.parse(localStorage.getItem("apmSave"));if(s&&s.history&&typeof s.bank==="number")return s}catch(e){}return {bank:START,day:1,history:[],last:null};}
-function ensureRides(){if(!state.builtRides||typeof state.builtRides!=="object")state.builtRides={};if(!Array.isArray(state.purchases))state.purchases=[];}
+function load(){try{const s=JSON.parse(localStorage.getItem("apmSave"));if(s&&Array.isArray(s.history)&&Number.isFinite(s.bank)&&Number.isInteger(s.day)&&s.day>=1&&s.day<=DAYS+1)return s}catch(e){}return {bank:START,day:1,history:[],last:null};}
+function ensureRides(){if(!state.builtRides||typeof state.builtRides!=="object"||Array.isArray(state.builtRides))state.builtRides={};if(!Array.isArray(state.purchases))state.purchases=[];}
 function renderRides(){
  ensureRides();$("rideCount").textContent=Object.keys(state.builtRides).length+" / 12 built";
  $("rideTabs").innerHTML=["All","Family","Thrill","Junior"].map(c=>'<button type="button" class="secondary" data-category="'+c+'" aria-pressed="'+(rideCategory===c)+'">'+c+'</button>').join("");
@@ -168,7 +168,7 @@ function calculate(p,day,weather){
  const marketingBoost=1+Math.min(.8,Math.sqrt(p.marketing)*.045*(1+effects.marketing));
  const dayTrend=Math.min(1.1,1+(day-1)*.004);
  const reputation=.55+(state.satisfaction??70)/155;
- const guests=Math.max(0,Math.round(28*priceIndex*marketingBoost*weather.factor*dayTrend*(1+effects.attendance)*reputation));
+ const guests=Math.min(46+Object.keys(state.builtRides||{}).length*3,Math.max(0,Math.round(28*priceIndex*marketingBoost*weather.factor*dayTrend*(1+effects.attendance)*reputation)));
  const rideRate=k=>Math.max(0,Math.min(.95,(k==="coaster"?.42:k==="pirate"?.52:.65)*Math.pow(Math.max(.1,({coaster:6,pirate:4,water:3}[k])/Math.max(.25,p[k])),.62)));
  const rides={coaster:Math.round(guests*rideRate("coaster")),pirate:Math.round(guests*rideRate("pirate")),water:Math.round(guests*rideRate("water"))};
  const foodRate=k=>Math.max(0,Math.min(.98,(k==="hotdog"?.48:k==="soda"?.68:.43)*Math.pow(Math.max(.1,({hotdog:5,soda:3,fries:4}[k])/Math.max(.25,p[k])),.35)));
@@ -181,7 +181,7 @@ function calculate(p,day,weather){
  const added={};let addedRev=0,addedCost=0;
  const maintenanceRide=day%9===0?catalog.find(ride=>state.builtRides?.[ride.id]):null;
  for(const ride of catalog){const built=state.builtRides?.[ride.id];if(!built)continue;const price=Math.max(0,Number(built.price)||0);const rate=Math.max(0,Math.min(.9,ride.rate*Math.pow(ride.price/Math.max(.25,price),.55)));const sold=maintenanceRide?.id===ride.id?0:Math.min(Math.round(guests*rate),Math.max(0,guests*2-Object.values(added).reduce((sum,r)=>sum+r.sold,0)));added[ride.id]={name:ride.name,sold,price,revenue:round(sold*price),cost:round(sold*ride.cost)};addedRev+=sold*price;addedCost+=sold*ride.cost;}
- const fixedBreakdown={staff:310,maintenance:130+Object.keys(state.builtRides||{}).length*9,utilities:90,insurance:50};for(const k of Object.keys(fixedBreakdown))fixedBreakdown[k]=round(fixedBreakdown[k]*mode().cost);
+ const fixedBreakdown={staff:450,maintenance:190+Object.keys(state.builtRides||{}).length*9,utilities:130,insurance:80};for(const k of Object.keys(fixedBreakdown))fixedBreakdown[k]=round(fixedBreakdown[k]*mode().cost);
  const fixedCost=round(Object.values(fixedBreakdown).reduce((a,b)=>a+b,0));
  const repairCost=round(((day%7===0?45:0)+(maintenanceRide?70:0))*mode().cost);
  const revenue=round(admissionRev+rideRev+foodRev+addedRev), expenses=round(rideCost+supplyCost+p.marketing+addedCost+fixedCost+repairCost), profit=round(revenue-expenses);
@@ -230,13 +230,13 @@ function renderLedger(){const rows=state.history;if(!rows.length){$("ledgerConte
  $("ledgerContent").innerHTML=html}
 document.addEventListener("click",e=>{const btn=e.target.closest("[data-upgrade]");if(!btn)return;const u=upgrades.find(x=>x.id===btn.dataset.upgrade);if(!u||gameOver()||state.upgrades?.[u.id]||state.bank<u.cost||(u.requires&&!state.upgrades?.[u.requires]))return;state.upgrades=state.upgrades||{};state.upgradePurchases=state.upgradePurchases||[];state.bank=round(state.bank-u.cost);state.upgrades[u.id]=true;state.upgradePurchases.push({day:state.day,id:u.id,name:u.name,cost:u.cost});save();render();toast(u.name+" purchased for "+money(u.cost));});
 document.addEventListener("click",e=>{const tab=e.target.closest("[data-category]");if(tab){rideCategory=tab.dataset.category;renderRides();return}const btn=e.target.closest("[data-build]");if(!btn)return;const ride=catalog.find(r=>r.id===btn.dataset.build);if(!ride||gameOver()||state.builtRides?.[ride.id]||state.bank<ride.build)return;ensureRides();state.bank=round(state.bank-ride.build);state.builtRides[ride.id]={price:ride.price};state.purchases.push({day:state.day,ride:ride.id,cost:ride.build});save();render();toast(ride.name+" built for "+money(ride.build)+"!");});
-document.addEventListener("change",e=>{const el=e.target.closest("[data-ride-price]");if(!el)return;const ride=catalog.find(r=>r.id===el.dataset.ridePrice);if(!ride||gameOver()||!state.builtRides?.[ride.id])return;const price=Math.min(50,Math.max(0,Math.round((Number(el.value)||0)*2)/2));state.builtRides[ride.id].price=price;save();renderRides();});
+document.addEventListener("change",e=>{const el=e.target.closest("[data-ride-price]");if(!el)return;const ride=catalog.find(r=>r.id===el.dataset.ridePrice);if(!ride||gameOver()||!state.builtRides?.[ride.id])return;const price=Math.min(50,Math.max(0,Math.round((Number(el.value)||0)*2)/2));state.builtRides[ride.id].price=price;state.strategy="custom";syncStrategy();save();renderRides();});
 function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),3500)}
 function runDay(){if(gameOver())return;const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);state.bank=r.bankAfter;state.satisfaction=r.satisfactionAfter;state.last=r;state.history.push(r);state.day++;save();render();if(gameOver())toast(state.bank<0?"Bankrupt. Reset to start a new season.":"Season complete! Your final bank balance is "+money(state.bank)+". Export your ledger or start a new season.");else showScreen("reports");toast("Day "+r.day+" closed. Net "+(r.profit>=0?"profit ":"loss ")+money(Math.abs(r.profit))+".");}
 document.querySelectorAll("[data-adjust]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.adjust,step=Number(b.dataset.delta),el=$(k),min=Number(el.min),max=Number(el.max);el.value=Math.min(max,Math.max(min,round((Number(el.value)||0)+step)));state.strategy="custom";syncStrategy();preview()}));
 Object.keys(defaults).forEach(k=>$(k).addEventListener("input",()=>{if(k!=="marketing"){state.strategy="custom";syncStrategy()}preview()}));
 $("openBtn").addEventListener("click",runDay);
-$("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,difficulty:$("difficulty").value,day:1,satisfaction:70,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);state.strategy="balanced";syncStrategy();save();render();toast("New season started. You have $100 in starting capital.");}});
+$("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,difficulty:$("difficulty").value,day:1,satisfaction:70,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);state.strategy="balanced";syncStrategy();save();render();showScreen("park");toast("New season started. You have $100 in starting capital.");}});
 $("exportBtn").addEventListener("click",()=>{if(!state.history.length){toast("Complete at least one operating day before exporting.");return}const cols=["Day","Weather","Guests","Admission Price","Coaster Price","Pirate Ship Price","Water Gun Price","Hot Dog Price","Soda Price","Fries Price","Marketing Budget","Admission Revenue","Ride Revenue","Food Revenue","Total Revenue","Ride Costs","Food Supply Costs","Marketing Cost","Total Expenses","Net Profit","Bank Before","Bank After","Coaster Rides Sold","Pirate Ship Rides Sold","Water Gun Plays Sold","Hot Dogs Sold","Sodas Sold","Fries Sold","Staff","Maintenance","Utilities","Insurance","Repairs","Happiness"];const lines=[cols.join(",")];for(const r of state.history){const p=r.prices;const vals=[r.day,r.weather,r.guests,p.admission,p.coaster,p.pirate,p.water,p.hotdog,p.soda,p.fries,p.marketing,r.admissionRev,r.rideRev,r.foodRev,r.revenue,r.rideCost,r.supplyCost,r.marketingCost,r.expenses,r.profit,r.bankBefore,r.bankAfter,r.rides.coaster,r.rides.pirate,r.rides.water,r.food.hotdog,r.food.soda,r.food.fries,r.fixedBreakdown?.staff||0,r.fixedBreakdown?.maintenance||0,r.fixedBreakdown?.utilities||0,r.fixedBreakdown?.insurance||0,r.repairCost||0,r.satisfactionAfter??70];lines.push(vals.map(v=>String(v).includes(",")?'"'+String(v).replaceAll('"','""')+'"':v).join(","))}const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="amusement-park-master-ledger.csv";a.click();URL.revokeObjectURL(url);});
 function setupDashboard(){
  const layout=document.querySelector('.layout'), panels=[...layout.querySelectorAll('section.panel')];

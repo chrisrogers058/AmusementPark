@@ -48,6 +48,18 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await seed({...base,bank:100,day:30,difficulty:'expert',satisfaction:70});await go('park');await page.locator('#openBtn').click();assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Season ended|Bankrupt|Goal reached/);
  await seed({...base,bank:-1,difficulty:'expert'});assert(await page.locator('#openBtn').isDisabled());await go('build');assert(await page.locator('[data-build="cups"]').isDisabled());
  }
+ // New-season end-to-end run: all 30 days, consistent accounting, terminal lock, reload.
+ if(await page.locator('#difficulty').count()){
+ await seed({...base,bank:100,difficulty:'easy',satisfaction:70});
+ for(let day=1;day<=30;day++){await go('park');await page.locator('#openBtn').click();const current=await saved();assert.equal(current.history.length,day);assert(Math.abs(current.last.revenue-current.last.expenses-current.last.profit)<.011)}
+ await go('park');assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Goal reached/);await page.reload();assert(await page.locator('#openBtn').isDisabled());
+ // Clamp invalid custom prices, migrate old saves, recover malformed saves.
+ await seed({...base,bank:100});await go('prices');await page.locator('#advancedPrices summary').click();await page.locator('#admission').fill('-100');assert.equal(await page.locator('#admission').inputValue(),'1');
+ await page.locator('#hotdog').fill('900');assert.equal(await page.locator('#hotdog').inputValue(),'25');await page.reload();await go('prices');await page.locator('#advancedPrices summary').click();assert.equal(await page.locator('#hotdog').inputValue(),'25');
+ await seed({bank:100,day:1,history:{}});assert.equal(await page.locator('#dayNumber').innerText(),'1');assert(await page.locator('#openBtn').isEnabled());
+ // Restore a useful park for screenshots, then exercise keyboard navigation.
+ await seed({...base,bank:600,difficulty:'normal',satisfaction:78});await page.locator('#nav-park').focus();await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert(await page.locator('#screen-prices').isVisible());
+ }
  for(const width of [390,768,1366]){await page.setViewportSize({width,height:900});for(const id of ['park','prices','build','reports']){await go(id);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`test-results/${id}-${width}.png`,fullPage:true})}}
  assert.deepEqual(errors,[]);console.log('PASS: all navigation, pricing, purchases, simulation, save, export, reset, feature checks and responsive layouts; no JS errors');
  }finally{await browser.close()}
