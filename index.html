@@ -62,6 +62,10 @@ button{font-size:16px;min-height:42px}
 #parkNameDialog{width:min(92vw,480px);border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 22px 80px #10254744;color:var(--ink)}#parkNameDialog::backdrop{background:#10254799;backdrop-filter:blur(4px)}#parkNameDialog h2{font-size:28px;margin:8px 0}#parkNameDialog label{display:block;font-weight:750}#parkNameInput{font:inherit;width:100%;border:2px solid #cbd8e8;border-radius:10px;padding:12px;margin:10px 0}#parkNameForm button{width:100%}#nameError{color:var(--red);font-size:15px;min-height:1em}.park-gate{left:25%;width:50%;bottom:38px;overflow-wrap:anywhere;font-size:clamp(15px,2.8vw,30px);line-height:1.15;padding:12px 10px;border-width:5px;box-shadow:0 4px 0 #1a3454}.park-name-heading{font-size:22px;margin:12px 0}.kicker{display:block;color:#d0e0ff;font-size:12px}
 
 #marketing{font:inherit;width:100%;border:1px solid #bdcde5;background:white;border-radius:10px;padding:12px 6px;margin-top:14px;color:var(--ink);max-width:100%}#marketingDescription{font-weight:750;color:#264c7c}
+
+.budget-line strong{white-space:nowrap;flex-shrink:0}
+/* Small CSS guests render consistently even when an operating system lacks emoji glyphs. */
+.park-visitor{font-size:0;width:15px;height:29px;--shirt:#eb7868;background:linear-gradient(90deg,transparent 0 20%,#294864 20% 43%,transparent 43% 57%,#294864 57% 80%,transparent 80%);background-size:100% 9px;background-repeat:no-repeat;background-position:center bottom}.park-visitor::before{content:'';position:absolute;top:0;left:3px;width:10px;height:10px;border-radius:50%;background:#e7af80;box-shadow:0 -2px 0 #6b4a3d}.park-visitor::after{content:'';position:absolute;left:1px;top:10px;width:14px;height:12px;border-radius:5px 5px 2px 2px;background:var(--shirt)}.park-visitor:nth-of-type(even){--shirt:#7569cc}.park-visitor:nth-of-type(3n){--shirt:#3b91b5}
 </style>
 </head>
 <body>
@@ -365,8 +369,9 @@ function setupDashboard(){
  const fixed=document.createElement('p');fixed.id='fixedCosts';fixed.setAttribute('aria-live','polite');screens.park.append(fixed);const detail=document.createElement('details');detail.className='budget-box';detail.innerHTML='<summary>Daily overhead breakdown</summary><div id="overheadDetail"></div>';screens.park.append(detail);
  const tip=document.createElement('p');tip.textContent='Set prices → choose an investment → open the park. Review your results in Reports.';screens.park.prepend(tip);
  screens.prices.append(pricing);screens.build.append(ridesPanel,upgradesPanel);screens.reports.append(report,history,totals);
- layout.replaceChildren(...Object.values(screens));layout.before(nav);
+ layout.replaceChildren(...Object.values(screens));layout.before(nav);setupVisitorRoutes();
 }
+function setupVisitorRoutes(){const scene=document.querySelector('.park-scene');const update=()=>{if(!scene.clientWidth)return;for(const visitor of scene.querySelectorAll('.park-visitor')){const start=parseFloat(visitor.style.getPropertyValue('--start'))/100*scene.clientWidth;visitor.style.setProperty('--shift',(scene.clientWidth/2-start)+'px')}};new ResizeObserver(update).observe(scene);update()}
 function showScreen(id){document.querySelectorAll('.game-screen').forEach(el=>el.hidden=el.id!=='screen-'+id);document.querySelectorAll('.game-nav button').forEach(el=>el.setAttribute('aria-selected',String(el.id==='nav-'+id)));}
 function setupStrategies(){
  const body=$('screen-prices').querySelector('.panel-body'),advanced=document.createElement('details');advanced.id='advancedPrices';

@@ -85,7 +85,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  // Exercise keyboard navigation.
 await page.locator('#nav-park').focus();await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert(await page.locator('#screen-prices').isVisible());
  }
- for(const width of [390,768,1366]){await page.setViewportSize({width,height:900});for(const id of ['park','prices','build','reports']){await go(id);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`test-results/${id}-${width}.png`,fullPage:true})}}
+ for(const width of [390,768,1366]){await page.setViewportSize({width,height:900});for(const id of ['park','prices','build','reports']){await go(id);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(id==='prices')assert.equal(await page.locator('#marketingLabel').evaluate(el=>getComputedStyle(el).whiteSpace),'nowrap');await page.screenshot({path:`test-results/${id}-${width}.png`,fullPage:true})}}
  assert.deepEqual(errors,[]);console.log('PASS: all navigation, pricing, purchases, simulation, save, export, reset, feature checks and responsive layouts; no JS errors');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
