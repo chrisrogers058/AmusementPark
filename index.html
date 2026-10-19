@@ -150,22 +150,24 @@ function renderRides(){
  $("rideTabs").innerHTML=["All","Family","Thrill","Junior"].map(c=>'<button type="button" class="secondary" data-category="'+c+'" aria-pressed="'+(rideCategory===c)+'">'+c+'</button>').join("");
  $("rideCatalog").innerHTML=catalog.filter(r=>rideCategory==="All"||r.category===rideCategory).map(r=>{const built=state.builtRides[r.id],price=built?built.price:r.price;return '<div class="ride-tile '+(built?'owned':'')+'"><h3>'+r.icon+' '+r.name+'</h3><p>'+r.category+' · Build '+money(r.build)+'</p><p>Operating cost '+money(r.cost)+'/ride</p><label>Ticket $ <input type="number" min="0" max="50" step=".5" data-ride-price="'+r.id+'" value="'+price+'" '+(!built?'disabled':'')+'></label><button type="button" class="'+(built?'secondary':'primary')+'" data-build="'+r.id+'" '+(built||state.bank<r.build||state.day>DAYS?'disabled':'')+'>'+(built?'✓ Built':'Build for '+money(r.build))+'</button></div>'}).join("");
 }
-function save(){try{localStorage.setItem("apmSave",JSON.stringify(state))}catch(e){}}
-function getPrices(){let p={};for(const k of Object.keys(defaults)){if(k==="marketing")p[k]=+$("marketing").value;else p[k]=Math.max(0,Number($(k).value)||0)}return p}
+function save(){state.prices=getPrices();try{localStorage.setItem("apmSave",JSON.stringify(state))}catch(e){}}
+function getPrices(){let p={};for(const k of Object.keys(defaults)){const el=$(k),value=Number(el.value);p[k]=round(Math.min(Number(el.max),Math.max(Number(el.min),Number.isFinite(value)?value:defaults[k])));el.value=p[k]}return p}
 function setPrices(p){for(const k of Object.keys(defaults))if($(k))$(k).value=p[k];$("marketingLabel").textContent=money(+p.marketing).replace(".00","")}
 function weatherFor(day){return [{name:"Sunny",icon:"☀️",factor:1.12},{name:"Cloudy",icon:"☁️",factor:.94},{name:"Hot",icon:"🌤️",factor:1.18},{name:"Showers",icon:"🌦️",factor:.72},{name:"Perfect",icon:"🌈",factor:1.25}][(day*7+3)%5]}
 function calculate(p,day,weather){
  const ticketRatio=p.admission/20;
  const rideAvg=(p.coaster/6+p.pirate/4+p.water/3)/3;
  const foodAvg=(p.hotdog/5+p.soda/3+p.fries/4)/3;
- const priceIndex=.54*Math.pow(Math.max(.15,ticketRatio),-.78)+.25*Math.pow(Math.max(.15,rideAvg),-.36)+.21*Math.pow(Math.max(.15,foodAvg),-.32);
+ // Total basket sensitivity prevents high admission from earning unlimited revenue.
+ const basket=.60*ticketRatio+.23*rideAvg+.17*foodAvg;
+ const priceIndex=Math.min(1.65,Math.exp(-1.9*(basket-1)));
  const effects=upgradeEffects();
  const marketingBoost=1+Math.min(.8,Math.sqrt(p.marketing)*.045*(1+effects.marketing));
  const dayTrend=1+(day-1)*.008;
  const guests=Math.max(0,Math.round(28*priceIndex*marketingBoost*weather.factor*dayTrend*(1+effects.attendance)));
- const rideRate=k=>Math.max(.03,Math.min(.95,(k==="coaster"?.42:k==="pirate"?.52:.65)*Math.pow(Math.max(.1,({coaster:6,pirate:4,water:3}[k])/Math.max(.25,p[k])),.62)));
+ const rideRate=k=>Math.max(0,Math.min(.95,(k==="coaster"?.42:k==="pirate"?.52:.65)*Math.pow(Math.max(.1,({coaster:6,pirate:4,water:3}[k])/Math.max(.25,p[k])),.62)));
  const rides={coaster:Math.round(guests*rideRate("coaster")),pirate:Math.round(guests*rideRate("pirate")),water:Math.round(guests*rideRate("water"))};
- const foodRate=k=>Math.max(.05,Math.min(.98,(k==="hotdog"?.48:k==="soda"?.68:.43)*Math.pow(Math.max(.1,({hotdog:5,soda:3,fries:4}[k])/Math.max(.25,p[k])),.35)));
+ const foodRate=k=>Math.max(0,Math.min(.98,(k==="hotdog"?.48:k==="soda"?.68:.43)*Math.pow(Math.max(.1,({hotdog:5,soda:3,fries:4}[k])/Math.max(.25,p[k])),.35)));
  const food={hotdog:Math.round(guests*foodRate("hotdog")),soda:Math.round(guests*foodRate("soda")),fries:Math.round(guests*foodRate("fries"))};
  const admissionRev=guests*p.admission;
  const rideRev=Object.keys(rides).reduce((s,k)=>s+rides[k]*p[k],0);
@@ -173,11 +175,11 @@ function calculate(p,day,weather){
  const rideCost=Object.keys(rides).reduce((s,k)=>s+rides[k]*costs[k],0);
  const supplyCost=Object.keys(food).reduce((s,k)=>s+food[k]*costs[k],0);
  const added={};let addedRev=0,addedCost=0;
- for(const ride of catalog){const built=state.builtRides?.[ride.id];if(!built)continue;const price=Math.max(0,Number(built.price)||0);const rate=Math.max(.03,Math.min(.9,ride.rate*Math.pow(ride.price/Math.max(.25,price),.55)));const sold=Math.round(guests*rate);added[ride.id]={name:ride.name,sold,price,revenue:round(sold*price),cost:round(sold*ride.cost)};addedRev+=sold*price;addedCost+=sold*ride.cost;}
+ for(const ride of catalog){const built=state.builtRides?.[ride.id];if(!built)continue;const price=Math.max(0,Number(built.price)||0);const rate=Math.max(0,Math.min(.9,ride.rate*Math.pow(ride.price/Math.max(.25,price),.55)));const sold=Math.round(guests*rate);added[ride.id]={name:ride.name,sold,price,revenue:round(sold*price),cost:round(sold*ride.cost)};addedRev+=sold*price;addedCost+=sold*ride.cost;}
  const revenue=round(admissionRev+rideRev+foodRev+addedRev), expenses=round(rideCost+supplyCost+p.marketing+addedCost), profit=round(revenue-expenses);
  return {day,weather:weather.name,weatherIcon:weather.icon,prices:p,guests,rides,food,admissionRev:round(admissionRev),rideRev:round(rideRev+addedRev),extraRides:added,extraRideRevenue:round(addedRev),extraRideCost:round(addedCost),foodRev:round(foodRev),revenue,rideCost:round(rideCost+addedCost),supplyCost:round(supplyCost),marketingCost:p.marketing,expenses,profit,bankBefore:state.bank,bankAfter:round(state.bank+profit)};
 }
-function preview(){const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);$("forecastGuests").textContent="~"+number(r.guests)+" guests";let idx=(p.admission/20)*.6+(Object.keys(costs).reduce((s,k)=>s+p[k]/({coaster:6,pirate:4,water:3,hotdog:5,soda:3,fries:4}[k]),0)/6)*.4; $("appeal").textContent=idx<.72?"Budget-friendly":idx<1.18?"Good value":"Premium pricing";$("weather").textContent=w.icon+" "+w.name;$("marketingLabel").textContent=money(p.marketing).replace(".00","");}
+function preview(){if(state){state.prices=getPrices();try{localStorage.setItem("apmSave",JSON.stringify(state))}catch(e){}}const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);$("forecastGuests").textContent="~"+number(r.guests)+" guests";let idx=(p.admission/20)*.6+(Object.keys(costs).reduce((s,k)=>s+p[k]/({coaster:6,pirate:4,water:3,hotdog:5,soda:3,fries:4}[k]),0)/6)*.4; $("appeal").textContent=idx<.72?"Budget-friendly":idx<1.18?"Good value":"Premium pricing";$("weather").textContent=w.icon+" "+w.name;$("marketingLabel").textContent=money(p.marketing).replace(".00","");}
 function render(){
  const done=state.history.length, last=state.last;
  $("dayNumber").textContent=Math.min(state.day,DAYS);$("bankValue").textContent=money(state.bank);$("bankSub").textContent=state.bank<0?"Negative cash flow":state.bank<25?"Low cash reserve":done?"After "+done+" operating day"+(done===1?"":"s"):"Starting capital";
@@ -211,10 +213,10 @@ document.addEventListener("click",e=>{const tab=e.target.closest("[data-category
 document.addEventListener("change",e=>{const el=e.target.closest("[data-ride-price]");if(!el)return;const ride=catalog.find(r=>r.id===el.dataset.ridePrice);if(!ride||!state.builtRides?.[ride.id])return;const price=Math.min(50,Math.max(0,Math.round((Number(el.value)||0)*2)/2));state.builtRides[ride.id].price=price;save();renderRides();});
 function toast(msg){$("toast").textContent=msg;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),3500)}
 function runDay(){if(state.day>DAYS)return;const p=getPrices(),w=weatherFor(state.day),r=calculate(p,state.day,w);state.bank=r.bankAfter;state.last=r;state.history.push(r);state.day++;save();render();if(state.day>DAYS)toast("Season complete! Your final bank balance is "+money(state.bank)+". Export your ledger or start a new season.");else showScreen("reports");toast("Day "+r.day+" closed. Net "+(r.profit>=0?"profit ":"loss ")+money(Math.abs(r.profit))+".");}
-document.querySelectorAll("[data-adjust]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.adjust,step=Number(b.dataset.delta),el=$(k),min=Number(el.min),max=Number(el.max);el.value=Math.min(max,Math.max(min,round((Number(el.value)||0)+step)));preview()}));
-Object.keys(defaults).forEach(k=>$(k).addEventListener("input",preview));
+document.querySelectorAll("[data-adjust]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.adjust,step=Number(b.dataset.delta),el=$(k),min=Number(el.min),max=Number(el.max);el.value=Math.min(max,Math.max(min,round((Number(el.value)||0)+step)));state.strategy="custom";syncStrategy();preview()}));
+Object.keys(defaults).forEach(k=>$(k).addEventListener("input",()=>{if(k!=="marketing"){state.strategy="custom";syncStrategy()}preview()}));
 $("openBtn").addEventListener("click",runDay);
-$("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);save();render();toast("New season started. You have $100 in starting capital.");}});
+$("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);state.strategy="balanced";syncStrategy();save();render();toast("New season started. You have $100 in starting capital.");}});
 $("exportBtn").addEventListener("click",()=>{if(!state.history.length){toast("Complete at least one operating day before exporting.");return}const cols=["Day","Weather","Guests","Admission Price","Coaster Price","Pirate Ship Price","Water Gun Price","Hot Dog Price","Soda Price","Fries Price","Marketing Budget","Admission Revenue","Ride Revenue","Food Revenue","Total Revenue","Ride Costs","Food Supply Costs","Marketing Cost","Total Expenses","Net Profit","Bank Before","Bank After","Coaster Rides Sold","Pirate Ship Rides Sold","Water Gun Plays Sold","Hot Dogs Sold","Sodas Sold","Fries Sold"];const lines=[cols.join(",")];for(const r of state.history){const p=r.prices;const vals=[r.day,r.weather,r.guests,p.admission,p.coaster,p.pirate,p.water,p.hotdog,p.soda,p.fries,p.marketing,r.admissionRev,r.rideRev,r.foodRev,r.revenue,r.rideCost,r.supplyCost,r.marketingCost,r.expenses,r.profit,r.bankBefore,r.bankAfter,r.rides.coaster,r.rides.pirate,r.rides.water,r.food.hotdog,r.food.soda,r.food.fries];lines.push(vals.map(v=>String(v).includes(",")?'"'+String(v).replaceAll('"','""')+'"':v).join(","))}const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="amusement-park-master-ledger.csv";a.click();URL.revokeObjectURL(url);});
 function setupDashboard(){
  const layout=document.querySelector('.layout'), panels=[...layout.querySelectorAll('section.panel')];
@@ -231,8 +233,19 @@ function setupDashboard(){
  layout.replaceChildren(...Object.values(screens));layout.before(nav);
 }
 function showScreen(id){document.querySelectorAll('.game-screen').forEach(el=>el.hidden=el.id!=='screen-'+id);document.querySelectorAll('.game-nav button').forEach(el=>el.setAttribute('aria-selected',String(el.id==='nav-'+id)));}
+function setupStrategies(){
+ const body=$('screen-prices').querySelector('.panel-body'),advanced=document.createElement('details');advanced.id='advancedPrices';
+ const summary=document.createElement('summary');summary.textContent='Custom prices (optional)';advanced.append(summary);
+ const marketing=body.querySelector('.budget-box'),marketingTitle=marketing.previousElementSibling;
+ const controls=[...body.children];for(const child of controls){if(child===marketingTitle)break;advanced.append(child)}
+ const strategies=document.createElement('div');strategies.className='ride-tabs';strategies.setAttribute('aria-label','Pricing strategy');
+ for(const [id,label] of [['budget','💚 Budget'],['balanced','⚖️ Balanced'],['premium','✨ Premium']]){const b=document.createElement('button');b.className='secondary';b.dataset.strategy=id;b.textContent=label;b.setAttribute('aria-pressed',String((state.strategy||'balanced')===id));b.onclick=()=>applyStrategy(id);strategies.append(b)}
+ const note=document.createElement('p');note.textContent='Budget attracts crowds. Premium raises margins but reduces demand.';body.prepend(strategies,note,advanced);
+}
+function applyStrategy(id){const factor={budget:.75,balanced:1,premium:1.35}[id];if(!factor||state.day>DAYS)return;const prices={...defaults,marketing:getPrices().marketing};for(const k of Object.keys(costs).concat('admission'))prices[k]=round(defaults[k]*factor);setPrices(prices);state.strategy=id;for(const ride of catalog)if(state.builtRides[ride.id])state.builtRides[ride.id].price=round(ride.price*factor);syncStrategy();save();render()}
+function syncStrategy(){document.querySelectorAll('[data-strategy]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.strategy===state.strategy)));}
 setupDashboard();
-state=load();ensureRides();state.upgrades=state.upgrades||{};state.upgradePurchases=state.upgradePurchases||[];setPrices(state.history.length?state.history[state.history.length-1].prices:defaults);if(state.day>DAYS)setPrices(state.history[state.history.length-1]?.prices||defaults);render();
+state=load();ensureRides();state.upgrades=state.upgrades||{};state.upgradePurchases=state.upgradePurchases||[];setPrices(state.prices|| (state.history.length?state.history[state.history.length-1].prices:defaults));setupStrategies();if(state.day>DAYS)setPrices(state.history[state.history.length-1]?.prices||defaults);render();
 })();
 </script>
 </body>
