@@ -80,8 +80,10 @@ const fs=require('fs'),assert=require('node:assert/strict');
  // Name length and exact text on the sign, headings, save and reload.
  await seed({...base,parkName:''}); // seed helper names the park before continuing.
  page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert(await page.locator('#parkNameDialog').isVisible());await page.locator('#parkNameInput').fill('A'.repeat(60));assert.equal((await page.locator('#parkNameInput').inputValue()).length,40);await page.locator('#parkNameForm button').click();assert.equal((await saved()).parkName.length,40);assert.equal((await page.locator('.park-gate').innerText()).length,40);
- // Restore a useful park for screenshots, then exercise keyboard navigation.
- await seed({...base,bank:600,difficulty:'normal',satisfaction:78});await page.locator('#nav-park').focus();await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert(await page.locator('#screen-prices').isVisible());
+ // Restore an operating park so screenshots cover real chart data and the expanded scene.
+ await seed({...base,bank:10000,parkName:'Rogers Adventure Park',difficulty:'normal',satisfaction:78});for(let day=1;day<=5;day++){await go('park');await page.locator('#openBtn').click()}await go('park');await page.locator('.park-scene').screenshot({path:'test-results/park-scene.png'});await page.locator('#goalProgress').screenshot({path:'test-results/goal-progress.png'});
+ // Exercise keyboard navigation.
+await page.locator('#nav-park').focus();await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert(await page.locator('#screen-prices').isVisible());
  }
  for(const width of [390,768,1366]){await page.setViewportSize({width,height:900});for(const id of ['park','prices','build','reports']){await go(id);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`test-results/${id}-${width}.png`,fullPage:true})}}
  assert.deepEqual(errors,[]);console.log('PASS: all navigation, pricing, purchases, simulation, save, export, reset, feature checks and responsive layouts; no JS errors');
