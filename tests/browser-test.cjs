@@ -26,7 +26,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await page.locator(`[data-adjust="${id}"]`).last().click();assert(Number(await page.locator('#'+id).inputValue())>before);
  await page.locator(`[data-adjust="${id}"]`).first().click();assert.equal(Number(await page.locator('#'+id).inputValue()),before);
  }
- await page.locator('#marketing').fill('25');assert.match(await page.locator('#marketingLabel').innerText(),/25/);
+ await page.locator('#marketing').selectOption('25');assert.match(await page.locator('#marketingLabel').innerText(),/25/);
  await go('park');await page.locator('#openBtn').click();assert.equal(await page.locator('#dayNumber').innerText(),'2');
  await go('reports');assert(await page.locator('#ledgerContent tr').count()>1);
  const balance=(await saved()).bank;await page.reload();assert.equal((await saved()).bank,balance);
@@ -57,15 +57,29 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await seed({...base,bank:100,day:30,difficulty:'expert',satisfaction:70});await go('park');await page.locator('#openBtn').click();assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Season ended|Bankrupt|Goal reached/);
  await seed({...base,bank:-1,difficulty:'expert'});assert(await page.locator('#openBtn').isDisabled());await go('build');assert(await page.locator('[data-build="cups"]').isDisabled());
  }
+
+ // Exercise every campaign, its exact daily charge, and persistence.
+ for(const cost of [0,25,75,150,300,500]){
+ await seed({...base,parkName:'Campaign Test',bank:10000});await go('prices');await page.locator('#marketing').selectOption(String(cost));assert.equal((await saved()).bank,10000);assert.match(await page.locator('#marketingLabel').innerText(),new RegExp('\\$'+cost));
+ await page.reload();await go('prices');assert.equal(await page.locator('#marketing').inputValue(),String(cost));await go('park');await page.locator('#openBtn').click();const r=(await saved()).last;assert.equal(r.marketingCost,cost);assert(r.marketingName);assert(Math.abs(r.revenue-r.expenses-r.profit)<.011);
+ }
+ await seed({...base,bank:100,prices:{admission:20,coaster:6,pirate:4,water:3,hotdog:5,soda:3,fries:4,marketing:100}});await go('prices');assert.equal(await page.locator('#marketing').inputValue(),'75');
+
  // New-season end-to-end run: all 30 days, consistent accounting, terminal lock, reload.
  if(await page.locator('#difficulty').count()){
  await seed({...base,bank:100,difficulty:'easy',satisfaction:70});
  for(let day=1;day<=30;day++){await go('park');await page.locator('#openBtn').click();const current=await saved();assert.equal(current.history.length,day);assert(Math.abs(current.last.revenue-current.last.expenses-current.last.profit)<.011)}
- await go('park');assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Goal reached/);await page.reload();assert(await page.locator('#openBtn').isDisabled());
+ await go('park');assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Goal reached|Season ended/);await page.reload();assert(await page.locator('#openBtn').isDisabled());
  // Clamp invalid custom prices, migrate old saves, recover malformed saves.
  await seed({...base,bank:100});await go('prices');await page.locator('#advancedPrices summary').click();await page.locator('#admission').fill('-100');assert.equal(await page.locator('#admission').inputValue(),'1');
  await page.locator('#hotdog').fill('900');assert.equal(await page.locator('#hotdog').inputValue(),'25');await page.reload();await go('prices');await page.locator('#advancedPrices summary').click();assert.equal(await page.locator('#hotdog').inputValue(),'25');
  await seed({bank:100,day:1,history:{}});assert.equal(await page.locator('#dayNumber').innerText(),'1');assert(await page.locator('#openBtn').isEnabled());
+ // Forecast status boundaries are driven by both goals, and every historical day is plotted.
+ await seed({...base,bank:10000});await go('park');await page.locator('#openBtn').click();const record={...(await saved()).last,day:1,profit:0,bankBefore:100,bankAfter:7500,satisfactionBefore:65,satisfactionAfter:65};
+ for(const [cash,happiness,status] of [[7500,65,'on-track'],[7501,66,'ahead'],[7499,90,'behind'],[9000,64,'behind']]){await seed({...base,bank:cash,difficulty:'normal',satisfaction:happiness,day:2,last:{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness},history:[{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness}]});assert.equal(await page.locator('#goalStatus').getAttribute('data-status'),status);assert.equal(await page.locator('circle[data-day]').count(),1)}
+ // Name length and exact text on the sign, headings, save and reload.
+ await seed({...base,parkName:''}); // seed helper names the park before continuing.
+ page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert(await page.locator('#parkNameDialog').isVisible());await page.locator('#parkNameInput').fill('A'.repeat(60));assert.equal((await page.locator('#parkNameInput').inputValue()).length,40);await page.locator('#parkNameForm button').click();assert.equal((await saved()).parkName.length,40);assert.equal((await page.locator('.park-gate').innerText()).length,40);
  // Restore a useful park for screenshots, then exercise keyboard navigation.
  await seed({...base,bank:600,difficulty:'normal',satisfaction:78});await page.locator('#nav-park').focus();await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert(await page.locator('#screen-prices').isVisible());
  }
