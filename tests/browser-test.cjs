@@ -3,11 +3,12 @@ const fs=require('fs'),assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1366,height:900},acceptDownloads:true});
+ await page.addInitScript(()=>{Math.random=()=>.99});
  const errors=[];page.on('pageerror',e=>errors.push(e.stack));
  const go=async id=>page.locator('#nav-'+id).click();
  const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('apmSave')));
  const namePark=async(name='Rogers Adventure Park')=>{if(await page.locator('#parkNameDialog').isVisible()){await page.locator('#parkNameInput').fill(name);await page.locator('#parkNameForm button').click()}};
- const seed=async data=>{await page.evaluate(d=>localStorage.setItem('apmSave',JSON.stringify(d)),data);await page.reload();await namePark()};
+ const seed=async data=>{await page.evaluate(d=>localStorage.setItem('apmSave',JSON.stringify({rulesVersion:3,difficulty:'easy',...d})),data);await page.reload();await namePark()};
  fs.mkdirSync('test-results',{recursive:true});
  try{
  await page.goto('file://'+process.cwd()+'/index.html');
@@ -31,7 +32,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await go('reports');assert(await page.locator('#ledgerContent tr').count()>1);
  const balance=(await saved()).bank;await page.reload();assert.equal((await saved()).bank,balance);
  const downloadPromise=page.waitForEvent('download');await page.locator('#exportBtn').click();const dl=await downloadPromise;assert(dl.suggestedFilename().endsWith('.csv'));
- const base={bank:10000,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};
+ const base={rulesVersion:3,difficulty:'easy',bank:10000,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};
  await seed(base);await go('build');
  for(const category of ['Family','Thrill','Junior','All']){await page.locator(`[data-category="${category}"]`).click();assert.equal(await page.locator('.ride-tile').count(),category==='All'?12:4)}
  for(const id of ['paths1','paths2','green1','green2','market1','market2']){const btn=page.locator(`[data-upgrade="${id}"]`);assert(await btn.isEnabled());const before=await page.locator('#fixedCosts').innerText();await btn.click();assert(await btn.isDisabled());assert.notEqual(await page.locator('#fixedCosts').innerText(),before)}
@@ -76,10 +77,34 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await seed({bank:100,day:1,history:{}});assert.equal(await page.locator('#dayNumber').innerText(),'1');assert(await page.locator('#openBtn').isEnabled());
  // Forecast status boundaries are driven by both goals, and every historical day is plotted.
  await seed({...base,bank:10000});await go('park');await page.locator('#openBtn').click();const record={...(await saved()).last,day:1,profit:0,bankBefore:100,bankAfter:7500,satisfactionBefore:65,satisfactionAfter:65};
- for(const [cash,happiness,status] of [[7500,65,'on-track'],[7501,66,'ahead'],[7499,90,'behind'],[9000,64,'behind']]){await seed({...base,bank:cash,difficulty:'normal',satisfaction:happiness,day:2,last:{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness},history:[{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness}]});assert.equal(await page.locator('#goalStatus').getAttribute('data-status'),status);assert.equal(await page.locator('circle[data-day]').count(),1)}
+ for(const [cash,happiness,status] of [[7500,65,'on-track'],[7501,66,'ahead'],[7499,90,'behind'],[9000,64,'behind']]){await seed({...base,bank:cash,difficulty:'easy',satisfaction:happiness,day:2,last:{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness},history:[{...record,bankAfter:cash,satisfactionBefore:happiness,satisfactionAfter:happiness}]});assert.equal(await page.locator('#goalStatus').getAttribute('data-status'),status);assert.equal(await page.locator('circle[data-day]').count(),1)}
  // Name length and exact text on the sign, headings, save and reload.
  await seed({...base,parkName:''}); // seed helper names the park before continuing.
  page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert(await page.locator('#parkNameDialog').isVisible());await page.locator('#parkNameInput').fill('A'.repeat(60));assert.equal((await page.locator('#parkNameInput').inputValue()).length,40);await page.locator('#parkNameForm button').click();assert.equal((await saved()).parkName.length,40);assert.equal((await page.locator('.park-gate').innerText()).length,40);
+
+ // Operations appear ahead of charts, and difficulty migration retains the old challenge.
+ await seed({...base,difficulty:'normal',rulesVersion:2});assert.equal((await saved()).difficulty,'easy');await page.reload();assert.equal((await saved()).difficulty,'easy');
+ await seed({...base,difficulty:'expert',rulesVersion:2});assert.equal((await saved()).difficulty,'normal');
+ assert(await page.evaluate(()=>!!(document.getElementById('parkViewPanel').compareDocumentPosition(document.getElementById('goalTracker'))&Node.DOCUMENT_POSITION_FOLLOWING)));
+ assert(await page.evaluate(()=>!!(document.getElementById('overheadPanel').compareDocumentPosition(document.getElementById('goalTracker'))&Node.DOCUMENT_POSITION_FOLLOWING)));
+ const batch=async n=>{await go('park');if(!(await page.locator('#simulationOptions').getAttribute('open')))await page.locator('#simulationOptions summary').click();await page.locator('[data-sim="'+n+'"]').click();await page.waitForFunction(()=>!document.getElementById('newGameBtn').disabled)};
+ // Batch history and finances must match seven separate daily operations exactly.
+ await seed({...base,bank:100000});await go('prices');await page.locator('#marketing').selectOption('75');for(let i=0;i<7;i++){await go('park');await page.locator('#openBtn').click()}const individual=await saved();
+ await seed({...base,bank:100000});await go('prices');await page.locator('#marketing').selectOption('75');await batch(7);const batched=await saved();assert.deepEqual(batched.history,individual.history);assert.equal(batched.bank,individual.bank);
+ await seed({...base,bank:100000});await batch(15);assert.equal((await saved()).history.length,15);await batch(30);assert.equal((await saved()).day,31);assert.equal((await saved()).history.length,30);assert(await page.locator('[data-sim="7"]').isDisabled());
+ await seed({...base,bank:1,difficulty:'expert'});await batch(15);assert.equal((await saved()).history.length,1);assert((await saved()).bank<0);
+ // All five completed sections unlock an option; reloading cannot duplicate same-day offers.
+ const ownedRides=Object.fromEntries(['carousel','ferris','train','bumper','drop','loop','swing','rapids','cups','mini','planes','frogs'].map(id=>[id,{price:4}]));const ownedUpgrades=Object.fromEntries(['paths1','paths2','green1','green2','market1','market2'].map(id=>[id,true]));
+ await seed({...base,bank:1000000,builtRides:ownedRides,upgrades:ownedUpgrades});assert.equal((await saved()).extraRides.length,3);assert.equal((await saved()).extraUpgrades.length,2);await go('build');
+ for(const r of (await saved()).extraRides)await page.locator('[data-build="'+r.id+'"]').click();for(const u of (await saved()).extraUpgrades)await page.locator('[data-upgrade="'+u.id+'"]').click();assert.equal((await saved()).extraRides.length,3);await page.reload();assert.equal((await saved()).extraRides.length,3);await go('park');await page.locator('#openBtn').click();assert.equal((await saved()).extraRides.length,6);assert.equal((await saved()).extraUpgrades.length,4);
+ // Force a fatal event, preserve it through reload, and process exactly seven closed days.
+ await seed({...base,bank:100000,difficulty:'normal'});await page.evaluate(()=>{Math.random=()=>0});await batch(15);assert.equal((await saved()).history.length,1);assert.equal((await saved()).closureRemaining,6);assert(await page.locator('#incidentOverlay').isVisible());assert.match(await page.locator('#incidentMessage').innerText(),/has died/);
+ await page.locator('#pauseAlert').click();assert.equal(await page.locator('#incidentOverlay').evaluate(el=>getComputedStyle(el).animationName),'none');await page.locator('#pauseAlert').click();
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('#incidentOverlay').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.locator('#pauseAlert').click();await page.locator('.park-scene').screenshot({path:'test-results/incident-desktop.png'});await page.setViewportSize({width:390,height:900});assert(await page.locator('#pauseAlert').isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.locator('.park-scene').screenshot({path:'test-results/incident-mobile.png'});await page.setViewportSize({width:1366,height:900});
+ await page.reload();assert.equal((await saved()).closureRemaining,6);assert(await page.locator('#incidentOverlay').isVisible());for(let i=0;i<6;i++){await page.locator('#openBtn').click();assert.equal((await saved()).last.marketingCost,0);assert.equal((await saved()).last.revenue,0)}assert.equal((await saved()).closureRemaining,0);assert(!(await page.locator('#incidentOverlay').isVisible()));await page.locator('#openBtn').click();assert(!(await saved()).last.closed);
+ await seed({...base,bank:100000,difficulty:'easy'});await page.evaluate(()=>{Math.random=()=>0});await batch(30);assert.equal((await saved()).history.filter(r=>r.closed).length,0);assert.equal((await saved()).day,31);
+
  // Restore an operating park so screenshots cover real chart data and the expanded scene.
  await seed({...base,bank:10000,parkName:'Rogers Adventure Park',difficulty:'normal',satisfaction:78});for(let day=1;day<=5;day++){await go('park');await page.locator('#openBtn').click()}await go('park');await page.locator('.park-scene').screenshot({path:'test-results/park-scene.png'});await page.locator('#goalProgress').screenshot({path:'test-results/goal-progress.png'});
  // Exercise keyboard navigation.
