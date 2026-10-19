@@ -87,7 +87,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await seed({...base,difficulty:'expert',rulesVersion:2});assert.equal((await saved()).difficulty,'normal');
  assert(await page.evaluate(()=>!!(document.getElementById('parkViewPanel').compareDocumentPosition(document.getElementById('goalTracker'))&Node.DOCUMENT_POSITION_FOLLOWING)));
  assert(await page.evaluate(()=>!!(document.getElementById('overheadPanel').compareDocumentPosition(document.getElementById('goalTracker'))&Node.DOCUMENT_POSITION_FOLLOWING)));
- const batch=async n=>{await go('park');if(!(await page.locator('#simulationOptions').getAttribute('open')))await page.locator('#simulationOptions summary').click();await page.locator('[data-sim="'+n+'"]').click();await page.waitForFunction(()=>!document.getElementById('newGameBtn').disabled)};
+ const batch=async n=>{await go('park');if(!(await page.locator('#simulationOptions').evaluate(el=>el.open)))await page.locator('#simulationOptions summary').click();await page.locator('[data-sim="'+n+'"]').click();await page.waitForFunction(()=>!document.getElementById('newGameBtn').disabled)};
  // Batch history and finances must match seven separate daily operations exactly.
  await seed({...base,bank:100000});await go('prices');await page.locator('#marketing').selectOption('75');for(let i=0;i<7;i++){await go('park');await page.locator('#openBtn').click()}const individual=await saved();
  await seed({...base,bank:100000});await go('prices');await page.locator('#marketing').selectOption('75');await batch(7);const batched=await saved();assert.deepEqual(batched.history,individual.history);assert.equal(batched.bank,individual.bank);
