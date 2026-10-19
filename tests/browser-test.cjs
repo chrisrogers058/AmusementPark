@@ -34,8 +34,8 @@ const fs=require('fs'),assert=require('node:assert/strict');
  const base={bank:10000,day:1,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};
  await seed(base);await go('build');
  for(const category of ['Family','Thrill','Junior','All']){await page.locator(`[data-category="${category}"]`).click();assert.equal(await page.locator('.ride-tile').count(),category==='All'?12:4)}
- for(const id of ['paths1','paths2','green1','green2','market1','market2']){const btn=page.locator(`[data-upgrade="${id}"]`);assert(await btn.isEnabled());await btn.click();assert(await btn.isDisabled())}
- for(const id of ['carousel','ferris','train','bumper','drop','loop','swing','rapids','cups','mini','planes','frogs']){const btn=page.locator(`[data-build="${id}"]`);assert(await btn.isEnabled());await btn.click();assert(await btn.isDisabled())}
+ for(const id of ['paths1','paths2','green1','green2','market1','market2']){const btn=page.locator(`[data-upgrade="${id}"]`);assert(await btn.isEnabled());const before=await page.locator('#fixedCosts').innerText();await btn.click();assert(await btn.isDisabled());assert.notEqual(await page.locator('#fixedCosts').innerText(),before)}
+ for(const id of ['carousel','ferris','train','bumper','drop','loop','swing','rapids','cups','mini','planes','frogs']){const btn=page.locator(`[data-build="${id}"]`);assert(await btn.isEnabled());const before=await page.locator('#fixedCosts').innerText();await btn.click();assert(await btn.isDisabled());assert.notEqual(await page.locator('#fixedCosts').innerText(),before)}
  await page.locator('[data-ride-price="cups"]').fill('4');await page.locator('[data-ride-price="cups"]').dispatchEvent('change');assert.equal((await saved()).builtRides.cups.price,4);
  await go('park');await page.locator('#openBtn').click();await go('reports');assert.match(await page.locator('#reportContent').innerText(),/Tea Cups/);
  await go('park');assert(await page.locator('#goalStatus').isVisible());assert.equal(await page.locator('[data-series=profit]').count(),1);assert.equal(await page.locator('[data-series=happiness]').count(),1);

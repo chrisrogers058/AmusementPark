@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('index.html','utf8').split('<script>')[1].split('</script>')[0];
 const fields=new Map();const document={getElementById:id=>{if(!fields.has(id))fields.set(id,{addEventListener(){},value:0});return fields.get(id)},addEventListener(){},querySelectorAll(){return []}};
 const marker='setupDashboard();\nstate=load();';assert(source.includes(marker));
-const instrumented=source.slice(0,source.indexOf(marker))+'globalThis.engine={calculate,weatherFor,defaults,catalog,modes,gameOver,goalForecast,setState:s=>state=s};})();';
+const instrumented=source.slice(0,source.indexOf(marker))+'globalThis.engine={calculate,weatherFor,defaults,catalog,modes,gameOver,goalForecast,overheadFor,assetUpkeep,upgrades,setState:s=>state=s};})();';
 const context={document,console,setTimeout(){}};vm.runInNewContext(instrumented,context);const e=context.engine;
 const fresh=difficulty=>({difficulty,bank:100,day:1,satisfaction:70,history:[],builtRides:{},upgrades:{}});
 let s=fresh('normal');e.setState(s);const normal=e.calculate(e.defaults,1,e.weatherFor(1));
@@ -38,3 +38,9 @@ const predicted=(cash,happiness,profit=0)=>e.goalForecast({bank:cash,day:2,satis
 assert.equal(predicted(1000,70).status,'on-track');assert.equal(predicted(1001,71).status,'ahead');assert.equal(predicted(999,90).status,'behind');assert.equal(predicted(2000,69).status,'behind');assert.equal(predicted(100,70,100).cash,3000);
 assert.equal(e.goalForecast({bank:100,day:1,history:[]},g).status,'waiting');assert.equal(e.goalForecast({bank:1001,day:31,satisfaction:71,history:[{day:30,profit:999}]},g).cash,1001);
 console.log('PASS: forecast categories, separate cash/happiness requirements, no-history and day-30 boundaries');
+
+let park=fresh('normal'),previous=e.overheadFor(park,1).total;
+for(const ride of e.catalog){park.builtRides[ride.id]={price:ride.price};const next=e.overheadFor(park,1);assert(next.total>previous);previous=next.total}
+for(const upgrade of e.upgrades){park.upgrades[upgrade.id]=true;const next=e.overheadFor(park,1);assert(next.total>previous);previous=next.total}
+const total=e.overheadFor(park,1);assert.equal(total.total,Object.values(total.breakdown).reduce((a,b)=>a+b,0));assert(e.overheadFor(park,1.12).total>total.total);
+console.log('PASS: every ride and upgrade raises overhead and reconciles to expense categories');
