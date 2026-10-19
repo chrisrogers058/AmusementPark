@@ -6,10 +6,17 @@ const fs=require('fs'),assert=require('node:assert/strict');
  const errors=[];page.on('pageerror',e=>errors.push(e.stack));
  const go=async id=>page.locator('#nav-'+id).click();
  const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('apmSave')));
- const seed=async data=>{await page.evaluate(d=>localStorage.setItem('apmSave',JSON.stringify(d)),data);await page.reload()};
+ const namePark=async(name='Rogers Adventure Park')=>{if(await page.locator('#parkNameDialog').isVisible()){await page.locator('#parkNameInput').fill(name);await page.locator('#parkNameForm button').click()}};
+ const seed=async data=>{await page.evaluate(d=>localStorage.setItem('apmSave',JSON.stringify(d)),data);await page.reload();await namePark()};
  fs.mkdirSync('test-results',{recursive:true});
  try{
  await page.goto('file://'+process.cwd()+'/index.html');
+ assert(await page.locator('#parkNameDialog').isVisible());assert(await page.locator('#openBtn').isDisabled());
+ await page.locator('#parkNameInput').fill('   ');await page.locator('#parkNameForm button').click();assert(await page.locator('#parkNameDialog').isVisible());
+ await page.keyboard.press('Escape');assert(await page.locator('#parkNameDialog').isVisible());
+ await namePark('Rogers & Kids <Adventure>');assert.equal(await page.locator('.park-gate').innerText(),'Rogers & Kids <Adventure>');assert.equal(await page.locator('.park-gate img').count(),0);
+ await page.reload();assert(!(await page.locator('#parkNameDialog').isVisible()));assert.match(await page.locator('header h1').innerText(),/Rogers & Kids/);
+ 
  assert(await page.locator('#openBtn').isVisible());assert.equal(await page.locator('.park-map').count(),1);assert(await page.locator('.park-map path').count()>25);
  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.map-wheel').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
  for(const id of ['prices','build','reports','park']){await go(id);assert(await page.locator('#screen-'+id).isVisible())}
@@ -32,7 +39,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await page.locator('[data-ride-price="cups"]').fill('4');await page.locator('[data-ride-price="cups"]').dispatchEvent('change');assert.equal((await saved()).builtRides.cups.price,4);
  await go('park');await page.locator('#openBtn').click();await go('reports');assert.match(await page.locator('#reportContent').innerText(),/Tea Cups/);
  await go('park');assert(await page.locator('#goalStatus').isVisible());assert.equal(await page.locator('[data-series=profit]').count(),1);assert.equal(await page.locator('[data-series=happiness]').count(),1);
- page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert.equal((await saved()).day,1);assert.equal(Object.keys((await saved()).builtRides).length,0);
+ page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();await namePark();assert.equal((await saved()).day,1);assert.equal(Object.keys((await saved()).builtRides).length,0);
  // Feature-specific checks are added with the corresponding branch.
  if(await page.locator('[data-strategy]').count()){
  await go('prices');await page.locator('[data-strategy="budget"]').click();const low=Number(await page.locator('#admission').inputValue());
@@ -46,7 +53,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  assert(Number.isFinite((await saved()).satisfaction));assert.match(await page.locator('#happinessValue').innerText(),/\d+/);
  }
  if(await page.locator('#difficulty').count()){
- await go('park');await page.locator('#difficulty').selectOption('expert');page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert.equal((await saved()).difficulty,'expert');assert.equal((await saved()).bank,100);
+ await go('park');await page.locator('#difficulty').selectOption('expert');page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();await namePark();assert.equal((await saved()).difficulty,'expert');assert.equal((await saved()).bank,100);
  await seed({...base,bank:100,day:30,difficulty:'expert',satisfaction:70});await go('park');await page.locator('#openBtn').click();assert(await page.locator('#openBtn').isDisabled());assert.match(await page.locator('#seasonGoal').innerText(),/Season ended|Bankrupt|Goal reached/);
  await seed({...base,bank:-1,difficulty:'expert'});assert(await page.locator('#openBtn').isDisabled());await go('build');assert(await page.locator('[data-build="cups"]').isDisabled());
  }
