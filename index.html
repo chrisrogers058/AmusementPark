@@ -54,6 +54,8 @@ button{font-size:16px;min-height:42px}
 
 /* Focused navigation: a single decision screen at a time. */
 .game-nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.game-nav button[aria-selected=true]{background:var(--blue);color:white}.layout{display:block}.game-screen[hidden]{display:none}.game-screen{max-width:1050px;margin:auto}.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.dashboard-grid .panel{margin:0 0 18px}.park-scene{height:300px}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #ffb400;outline-offset:3px}.game-nav button{flex:1}.table-wrap{max-width:100%}.sale-line{flex-wrap:wrap}.wrap{overflow-wrap:anywhere}#helpPanel .panel-body{display:block}#helpPanel{display:none}.game-screen h2:focus{outline:none}@media(max-width:700px){.dashboard-grid{grid-template-columns:1fr}.game-nav button{padding:10px 6px;font-size:15px}.stats{grid-template-columns:1fr 1fr}}
+
+.goal-progress{margin:16px 0;padding:16px;background:white;border:1px solid var(--line);border-radius:14px}.goal-status{display:inline-block;padding:6px 12px;border-radius:99px;font-weight:850;background:#edf2fa}.goal-status[data-status="behind"]{background:#fff0eb;color:#a33316}.goal-status[data-status="on-track"]{background:#fff5d6;color:#755400}.goal-status[data-status="ahead"]{background:#e2f8ec;color:#126344}.goal-projections{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.goal-projections strong{display:block}.trend-chart{width:100%;height:auto;display:block;min-height:160px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}.chart-legend span::before{content:'';display:inline-block;width:20px;height:3px;background:var(--series);margin-right:6px;vertical-align:middle}.forecast-note{font-size:14px;color:var(--muted)}.goal-progress details{font-size:14px}.goal-progress table{width:100%;border-collapse:collapse}.goal-progress th,.goal-progress td{text-align:right;padding:6px;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -207,6 +209,7 @@ function render(){
  document.querySelectorAll('[data-adjust],[data-strategy],[data-ride-price]').forEach(el=>el.disabled=gameOver()||(el.dataset.ridePrice&&!state.builtRides?.[el.dataset.ridePrice]));
  const goal=mode();const won=state.bank>=goal.goal&&(state.satisfaction??70)>=goal.happiness;
  $('seasonGoal').textContent=state.bank<0?'Bankrupt. Start a new season to try again.':state.day>DAYS?(won?'Goal reached!':'Season ended — target missed.')+' Cash '+money(state.bank)+' · happiness '+(state.satisfaction??70)+'/100':'Day 30 goal: '+money(goal.goal)+' cash + '+goal.happiness+' happiness · '+goal.label;
+ renderGoalProgress();
  $('difficultyNote').textContent='All modes start with $100. '+modes[$('difficulty').value].label+': overhead ×'+modes[$('difficulty').value].cost+' · target '+money(modes[$('difficulty').value].goal)+'. Changing difficulty starts with your next reset.';
  $("marketing").disabled=gameOver();
  const sums={admission:0,rides:0,food:0,ops:0,supplies:0,marketing:0,profit:0,guests:0};
@@ -238,6 +241,51 @@ Object.keys(defaults).forEach(k=>$(k).addEventListener("input",()=>{if(k!=="mark
 $("openBtn").addEventListener("click",runDay);
 $("newGameBtn").addEventListener("click",()=>{if(confirm("Start a new 30-day season? Your current game history will be reset.")){state={bank:START,difficulty:$("difficulty").value,day:1,satisfaction:70,history:[],last:null,builtRides:{},purchases:[],upgrades:{},upgradePurchases:[]};setPrices(defaults);state.strategy="balanced";syncStrategy();save();render();showScreen("park");toast("New season started. You have $100 in starting capital.");}});
 $("exportBtn").addEventListener("click",()=>{if(!state.history.length){toast("Complete at least one operating day before exporting.");return}const cols=["Day","Weather","Guests","Admission Price","Coaster Price","Pirate Ship Price","Water Gun Price","Hot Dog Price","Soda Price","Fries Price","Marketing Budget","Admission Revenue","Ride Revenue","Food Revenue","Total Revenue","Ride Costs","Food Supply Costs","Marketing Cost","Total Expenses","Net Profit","Bank Before","Bank After","Coaster Rides Sold","Pirate Ship Rides Sold","Water Gun Plays Sold","Hot Dogs Sold","Sodas Sold","Fries Sold","Staff","Maintenance","Utilities","Insurance","Repairs","Happiness"];const lines=[cols.join(",")];for(const r of state.history){const p=r.prices;const vals=[r.day,r.weather,r.guests,p.admission,p.coaster,p.pirate,p.water,p.hotdog,p.soda,p.fries,p.marketing,r.admissionRev,r.rideRev,r.foodRev,r.revenue,r.rideCost,r.supplyCost,r.marketingCost,r.expenses,r.profit,r.bankBefore,r.bankAfter,r.rides.coaster,r.rides.pirate,r.rides.water,r.food.hotdog,r.food.soda,r.food.fries,r.fixedBreakdown?.staff||0,r.fixedBreakdown?.maintenance||0,r.fixedBreakdown?.utilities||0,r.fixedBreakdown?.insurance||0,r.repairCost||0,r.satisfactionAfter??70];lines.push(vals.map(v=>String(v).includes(",")?'"'+String(v).replaceAll('"','""')+'"':v).join(","))}const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="amusement-park-master-ledger.csv";a.click();URL.revokeObjectURL(url);});
+
+function goalForecast(park,goal){
+ const rows=park.history||[],recent=rows.slice(-5),last=rows.at(-1),completed=last?.day||0,remaining=Math.max(0,DAYS-completed);
+ if(!recent.length)return {status:'waiting',cash:park.bank,happiness:park.satisfaction??70,completed,remaining};
+ const average=recent.reduce((sum,r)=>sum+r.profit,0)/recent.length;
+ const happinessRows=recent.filter(r=>Number.isFinite(r.satisfactionAfter));
+ let slope=0;
+ if(happinessRows.length>1){const first=happinessRows[0],end=happinessRows.at(-1);slope=(end.satisfactionAfter-first.satisfactionAfter)/Math.max(1,end.day-first.day)}
+ else if(happinessRows.length===1){const r=happinessRows[0];slope=r.satisfactionAfter-(r.satisfactionBefore??r.satisfactionAfter)}
+ const ended=park.day>DAYS||park.bank<0;
+ const cash=round(ended?park.bank:park.bank+average*remaining),happiness=Math.max(0,Math.min(100,ended?(park.satisfaction??70):(park.satisfaction??70)+slope*remaining));
+ const status=park.bank<0||cash<goal.goal||happiness<goal.happiness?'behind':cash>goal.goal&&happiness>goal.happiness?'ahead':'on-track';
+ return {status,cash,happiness,completed,remaining,average,slope};
+}
+function trendSvg(rows,projection,goal,kind){
+ const w=680,h=210,l=70,right=kind==='daily'?620:650,top=30,bottom=170;
+ const x=day=>l+(right-l)*day/DAYS;
+ const profits=rows.map(r=>r.profit),min=kind==='daily'?Math.min(0,...profits):Math.min(0,...rows.map(r=>r.bankAfter),projection.cash),max=kind==='daily'?Math.max(100,...profits):Math.max(goal.goal,projection.cash,...rows.map(r=>r.bankAfter),START);
+ const y=value=>bottom-(value-min)/(max-min||1)*(bottom-top),happy=value=>bottom-value/100*(bottom-top);
+ const text=(x,y,value,anchor='start')=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="12" fill="#52647a">${value}</text>`;
+ const line=(pts,color,dash='',extra='')=>`<polyline ${extra} points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" ${dash?'stroke-dasharray="'+dash+'"':''}/>`;
+ const points=(field,scale)=>rows.map(r=>[x(r.day),scale(r[field])]);
+ let chart=`<svg class="trend-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${kind==='daily'?'Daily profit in dollars and guest happiness from 0 to 100':'Cash balance, Day 30 cash goal and projected ending cash'}"><title>${kind==='daily'?'Daily profit and guest happiness':'Progress toward Day 30 cash goal'}</title>`;
+ for(let i=0;i<=4;i++){const yy=top+(bottom-top)*i/4;chart+=`<line x1="${l}" x2="${right}" y1="${yy}" y2="${yy}" stroke="#e4e9f1"/>`+text(l-8,yy+4,'$'+Math.round(max-(max-min)*i/4),'end');if(kind==='daily')chart+=text(right+9,yy+4,100-i*25)}
+ for(const day of [0,5,10,15,20,25,30])chart+=text(x(day),bottom+22,day,'middle');
+ chart+=text(l,17,kind==='daily'?'Daily profit ($)':'Cash ($)')+text(right,17,kind==='daily'?'Happiness / 100':'Day 30 target','end')+text((l+right)/2,207,'Operating day','middle');
+ if(kind==='daily'){
+ chart+=line(points('profit',y),'#2563eb','', 'data-series="profit"');
+ const known=rows.filter(r=>Number.isFinite(r.satisfactionAfter));chart+=line(known.map(r=>[x(r.day),happy(r.satisfactionAfter)]),'#16845b','', 'data-series="happiness"');
+ for(const r of rows)chart+=`<circle data-day="${r.day}" cx="${x(r.day)}" cy="${y(r.profit)}" r="3" fill="#2563eb"><title>Day ${r.day}: profit ${money(r.profit)}; happiness ${Number.isFinite(r.satisfactionAfter)?r.satisfactionAfter:'not recorded'}</title></circle>`;
+ chart+=line([[l,happy(goal.happiness)],[right,happy(goal.happiness)]],'#16845b','3 5');
+ }else{
+ chart+=line([[l,y(goal.goal)],[right,y(goal.goal)]],'#9b6e13','4 5');
+ chart+=line([[x(0),y(START)],...points('bankAfter',y)],'#2563eb','', 'data-series="cash"');
+ const last=rows.at(-1);if(last&&projection.remaining&&state.bank>=0)chart+=line([[x(last.day),y(state.bank)],[x(DAYS),y(projection.cash)]],'#7b4ce0','6 5','data-series="projection"');
+ }
+ return chart+'</svg>';
+}
+function renderGoalProgress(){
+ const el=$('goalProgress');if(!el)return;const goal=mode(),f=goalForecast(state,goal),labels={waiting:'Play a day to see your forecast',behind:'Behind schedule','on-track':'On track',ahead:'Ahead of schedule'};
+ el.innerHTML=`<div id="goalStatus" class="goal-status" data-status="${f.status}" role="status">${labels[f.status]}</div><div class="goal-projections"><div>Projected Day 30 cash<strong id="projectedCash">${f.status==='waiting'?'—':money(f.cash)} / ${money(goal.goal)}</strong></div><div>Projected happiness<strong id="projectedHappiness">${f.status==='waiting'?'—':f.happiness.toFixed(1)} / ${goal.happiness}</strong></div></div>`;
+ if(!state.history.length){el.insertAdjacentHTML('beforeend','<p>No completed days yet. Daily profit, happiness and cash progress will appear here.</p>');return}
+ el.insertAdjacentHTML('beforeend',trendSvg(state.history,f,goal,'daily')+'<div class="chart-legend"><span style="--series:#2563eb">Daily profit · left axis ($)</span><span style="--series:#16845b">Happiness · right axis (0–100); dotted goal</span></div>'+trendSvg(state.history,f,goal,'cash')+'<div class="chart-legend"><span style="--series:#2563eb">Actual cash</span><span style="--series:#7b4ce0">Projected cash (dashed)</span><span style="--series:#9b6e13">Day 30 cash target (dashed)</span></div><p class="forecast-note">Estimate: current cash + average operating profit from the latest five days × days remaining. Happiness follows its recent daily trend, limited to 0–100. New investments reduce cash immediately; future purchases and changing conditions are not predicted. At season end, this shows actual results.</p><details><summary>Daily chart values</summary><div class="table-wrap"><table><thead><tr><th>Day</th><th>Profit</th><th>Happiness</th><th>Cash at close</th></tr></thead><tbody>'+state.history.map(r=>'<tr><td>'+r.day+'</td><td>'+money(r.profit)+'</td><td>'+(r.satisfactionAfter??'Not recorded')+'</td><td>'+money(r.bankAfter)+'</td></tr>').join('')+'</tbody></table></div></details>');
+}
+
 function setupDashboard(){
  const layout=document.querySelector('.layout'), panels=[...layout.querySelectorAll('section.panel')];
  const nav=document.createElement('nav');nav.className='game-nav';nav.setAttribute('aria-label','Park management');
@@ -248,7 +296,7 @@ function setupDashboard(){
  }
  const pricing=panels[0],upgradesPanel=panels[1],ridesPanel=panels[2],history=panels[3],scene=panels[4],report=panels[5],totals=panels[6];
  screens.park.append(scene,document.querySelector('.action-area'));
- const goal=document.createElement('div');goal.className='budget-box';goal.innerHTML='<strong id="seasonGoal" role="status"></strong><p><label for="difficulty">Next season difficulty </label><select style="font:inherit;padding:8px;max-width:100%" id="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="expert">Expert</option></select></p><p id="difficultyNote"></p>';screens.park.prepend(goal);goal.querySelector('select').addEventListener('change',()=>render());
+ const goal=document.createElement('div');goal.className='budget-box';goal.innerHTML='<strong id="seasonGoal" role="status"></strong><p><label for="difficulty">Next season difficulty </label><select style="font:inherit;padding:8px;max-width:100%" id="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="expert">Expert</option></select></p><p id="difficultyNote"></p>';const progress=document.createElement('section');progress.id='goalProgress';progress.className='goal-progress';goal.querySelector('#seasonGoal').after(progress);screens.park.prepend(goal);goal.querySelector('select').addEventListener('change',()=>render());
  const happy=document.createElement('section');happy.className='stat';happy.innerHTML='<div class="label">😊 Guest happiness</div><div id="happinessValue" class="value">70 / 100</div><p id="happinessReason"></p>';screens.park.prepend(happy);
  const fixed=document.createElement('p');fixed.id='fixedCosts';fixed.setAttribute('aria-live','polite');screens.park.append(fixed);
  const tip=document.createElement('p');tip.textContent='Set prices → choose an investment → open the park. Review your results in Reports.';screens.park.prepend(tip);

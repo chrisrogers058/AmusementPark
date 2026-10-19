@@ -30,6 +30,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  for(const id of ['carousel','ferris','train','bumper','drop','loop','swing','rapids','cups','mini','planes','frogs']){const btn=page.locator(`[data-build="${id}"]`);assert(await btn.isEnabled());await btn.click();assert(await btn.isDisabled())}
  await page.locator('[data-ride-price="cups"]').fill('4');await page.locator('[data-ride-price="cups"]').dispatchEvent('change');assert.equal((await saved()).builtRides.cups.price,4);
  await go('park');await page.locator('#openBtn').click();await go('reports');assert.match(await page.locator('#reportContent').innerText(),/Tea Cups/);
+ await go('park');assert(await page.locator('#goalStatus').isVisible());assert.equal(await page.locator('[data-series=profit]').count(),1);assert.equal(await page.locator('[data-series=happiness]').count(),1);
  page.once('dialog',d=>d.accept());await page.locator('#newGameBtn').click();assert.equal((await saved()).day,1);assert.equal(Object.keys((await saved()).builtRides).length,0);
  // Feature-specific checks are added with the corresponding branch.
  if(await page.locator('[data-strategy]').count()){

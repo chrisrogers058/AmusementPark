@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('index.html','utf8').split('<script>')[1].split('</script>')[0];
 const fields=new Map();const document={getElementById:id=>{if(!fields.has(id))fields.set(id,{addEventListener(){},value:0});return fields.get(id)},addEventListener(){},querySelectorAll(){return []}};
 const marker='setupDashboard();\nstate=load();';assert(source.includes(marker));
-const instrumented=source.slice(0,source.indexOf(marker))+'globalThis.engine={calculate,weatherFor,defaults,catalog,modes,gameOver,setState:s=>state=s};})();';
+const instrumented=source.slice(0,source.indexOf(marker))+'globalThis.engine={calculate,weatherFor,defaults,catalog,modes,gameOver,goalForecast,setState:s=>state=s};})();';
 const context={document,console,setTimeout(){}};vm.runInNewContext(instrumented,context);const e=context.engine;
 const fresh=difficulty=>({difficulty,bank:100,day:1,satisfaction:70,history:[],builtRides:{},upgrades:{}});
 let s=fresh('normal');e.setState(s);const normal=e.calculate(e.defaults,1,e.weatherFor(1));
@@ -32,3 +32,9 @@ for(const difficulty of ['normal','expert']){
 }
 
 s=fresh('normal');s.builtRides={cups:{price:3}};e.setState(s);const fairRide=e.calculate(e.defaults,1,e.weatherFor(1));s.builtRides.cups.price=50;const gouged=e.calculate(e.defaults,1,e.weatherFor(1));assert(gouged.extraRides.cups.revenue<fairRide.extraRides.cups.revenue,'Custom ride prices must not offer unlimited revenue');
+
+const g={goal:1000,happiness:70};
+const predicted=(cash,happiness,profit=0)=>e.goalForecast({bank:cash,day:2,satisfaction:happiness,history:[{day:1,profit,satisfactionBefore:happiness,satisfactionAfter:happiness}]},g);
+assert.equal(predicted(1000,70).status,'on-track');assert.equal(predicted(1001,71).status,'ahead');assert.equal(predicted(999,90).status,'behind');assert.equal(predicted(2000,69).status,'behind');assert.equal(predicted(100,70,100).cash,3000);
+assert.equal(e.goalForecast({bank:100,day:1,history:[]},g).status,'waiting');assert.equal(e.goalForecast({bank:1001,day:31,satisfaction:71,history:[{day:30,profit:999}]},g).cash,1001);
+console.log('PASS: forecast categories, separate cash/happiness requirements, no-history and day-30 boundaries');
