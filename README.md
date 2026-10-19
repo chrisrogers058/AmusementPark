@@ -6,7 +6,7 @@ A self-contained browser management game. Open `index.html` in a modern browser.
 
 Name your park before beginning (1–40 characters). The name stays with the season and appears on its entrance sign, screen headings and CSV exports. Existing unnamed saves prompt for a name without losing history.
 
-1. **Park:** See cash, happiness, weather and projected operating costs. Open the park once to advance one game day.
+1. **Park:** The park view, Open Park button, multi-day simulation and overhead details appear before happiness and goal charts. Open once for one day, or choose Sim 7 days, Sim 15 days, or Sim to Day 30. Simulations use your current prices, built-ride tickets and marketing selection without buying investments.
 2. **Prices:** Choose Budget, Balanced or Premium. Optional custom controls set individual admission, ride and food prices. Advertising remains a separate daily decision.
 3. **Build:** Construct 12 rides across Family, Thrill and Junior, or buy paths, greenery and marketing upgrades. Purchases spend cash immediately.
 4. **Reports:** Review daily sales, operating expenses, overhead, repairs and financial history. Export downloads CSV.
@@ -15,15 +15,15 @@ All difficulties start with **$100** and run for **30 operating days**. Negative
 
 | Mode | Overhead multiplier | Cash target | Happiness target |
 | --- | ---: | ---: | ---: |
-| Easy | 0.70 | $10,000 | 60 |
-| Normal | 1.00 | $7,500 | 65 |
-| Expert | 1.12 | $5,000 | 70 |
+| Easy | 1.00 | $7,500 | 65 |
+| Normal | 1.12 | $5,000 | 70 |
+| Expert | 1.20 | $15,000 | 85 |
 
 Base daily overhead is $850: staff $450, maintenance $190, utilities $130, insurance $80. Each ride adds daily staff, maintenance, utility and insurance costs, scaled to its construction price. Upgrades add recurring upkeep too. Build cards show the daily increase before purchase; the Park screen has an expandable breakdown and the forecast updates after every purchase. Scheduled repairs occur every seventh day. Every ninth day, one built ride closes for maintenance with a repair charge. These rules are deterministic so runs can be compared fairly.
 
 Higher prices reduce demand. Gate capacity grows with construction. Guest happiness changes gradually based on value, crowding, ride variety and amenities; reputation affects future demand. Premium pricing can lose money quickly. The daily forecast includes overhead and scheduled repairs; save a cash reserve before investing.
 
-Difficulty selection applies when you press **Reset**, after confirmation. Existing saves migrate to Normal with happiness 70 if those fields were absent. Existing history remains intact. Early saves were earned under earlier financial rules; reset for a comparable challenge.
+Difficulty selection applies when you press **Reset**, after confirmation. Versioned saves map the former Normal to Easy and former Expert to Normal. The retired introductory Easy also becomes Easy. Cash, assets, prices, names and historical records are retained. New seasons default to Easy. Existing history remains intact. Early saves were earned under earlier financial rules; reset for a comparable challenge.
 
 ## Goal charts and projections
 
@@ -57,7 +57,7 @@ The park illustration now includes five ride types, gardens, a snack stand, benc
 
 ## Development and checks
 
-The latest five features are stacked in separate branches: `feature/goal-progress-chart`, `feature/park-scenery`, `feature/park-names`, `feature/scaling-overhead`, and `feature/marketing-packages`. Each branch has its own browser check; later branches include earlier features.
+The latest operations expansion is developed in `feature/advanced-park-operations` and passes the regression workflow before merging to `main`.
 
 ```sh
 npm install --no-save --package-lock=false playwright@1.56.1
@@ -69,3 +69,23 @@ node tests/browser-test.cjs
 GitHub Actions runs the checks. Browser coverage includes every price button, category filter, all 12 construction buttons, all six upgrades, strategies, marketing, save/reload, CSV, reset, difficulty, bankruptcy, season completion, malformed saves, keyboard navigation and layouts at 390, 768 and 1366 pixels. Screenshots are uploaded as workflow artifacts. Economy checks verify reconciliation, demand, no-guest overhead, maintenance, and winning/losing season strategies.
 
 Additional regression coverage checks forecast classifications and chart points, required names and the 40-character limit, reduced-motion behavior, recurring costs for every asset, all marketing campaigns and exact daily charges, saved selections and legacy budgets.
+
+## Faster simulation and growing investment catalogs
+
+Simulations stop at Day 30, bankruptcy, or a new fatal incident. Every simulated day produces its own ledger record, item sales, overhead, happiness update, save and eligible new offers; the batch does not buy anything automatically. Controls are locked while a batch runs. Closed days count toward the 30-day season.
+
+Once all existing offers in a section are purchased, a new, more expensive offer appears, at most once per section per game day. Sections are Family rides, Thrill rides, Junior rides, park improvements (paths/greenery), and marketing infrastructure. Buying the new offer completes that section again, so another can unlock the following day. Reloading cannot duplicate offers. New rides and upgrades participate in revenue, attendance/campaign effects and recurring overhead just like original assets. The starting five paid advertising campaigns remain daily choices rather than permanent purchases.
+
+## Fatal ride incidents
+
+| Difficulty | Chance per open day with guests |
+| --- | ---: |
+| Easy | 0% |
+| Normal | 0.5% (`0.005`) |
+| Expert | 3% (`0.03`) |
+
+A fatal incident closes the park for seven game days **including the incident day**. There are no guests, item sales, revenue or paid advertising charges during closure. Staff/maintenance/utilities/insurance and scheduled repairs continue. Happiness drops by 20 at the incident and by one on each subsequent closed day. Continue using the daily button or simulation controls to advance closed days. The park reopens after day seven if it has enough cash and the season has not ended. Closed days cannot trigger another incident. Previews never roll for an incident.
+
+A new incident interrupts bulk simulation and opens the Park screen with a dark red emergency overlay. It pulses slowly, supports pausing the alert animation, and stays static under reduced-motion settings. Incident and closure state survive reload, and closure status appears in daily reports and CSV exports. Projections do not predict future random incidents. Bankruptcy or season end still stops play, even during a closure.
+
+Additional automated coverage verifies single-day/batch equivalence, seven-/15-day/rest-of-season controls, save migration, renewable offers and duplicate prevention, exact incident probability boundaries, seven closed days and reopening, Easy immunity, closure persistence, paused/reduced-motion alerts, and desktop/mobile incident screenshots.
