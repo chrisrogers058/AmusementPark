@@ -425,6 +425,7 @@ function renderParkIdentity(){
 $('parkNameDialog').addEventListener('cancel',e=>e.preventDefault());
 $('parkNameForm').addEventListener('submit',e=>{e.preventDefault();const name=cleanParkName($('parkNameInput').value);if(!name){$('nameError').textContent='Enter a name with at least one non-space character.';$('parkNameInput').focus();return}state.parkName=name;$('parkNameDialog').close();save();render();$('nav-park').focus()});
 function setupDashboard(){
+ const action=document.querySelector('.action-area');
  const layout=document.querySelector('.layout'), panels=[...layout.querySelectorAll('section.panel')];
  const nav=document.createElement('nav');nav.className='game-nav';nav.setAttribute('aria-label','Park management');
  const screens={};
@@ -433,15 +434,15 @@ function setupDashboard(){
  const screen=document.createElement('section');screen.id='screen-'+id;screen.className='game-screen';screen.setAttribute('aria-label',label);screen.hidden=id!=='park';screens[id]=screen;
  }
  const pricing=panels[0],upgradesPanel=panels[1],ridesPanel=panels[2],history=panels[3],scene=panels[4],report=panels[5],totals=panels[6];
- screens.park.append(scene,document.querySelector('.action-area'));
- const sim=document.createElement('details');sim.id='simulationOptions';sim.innerHTML='<summary>⏩ Simulate ahead</summary><p>Keep current prices and marketing for each day. Stops at bankruptcy, Day 30, or a new fatal incident.</p><div class="sim-actions"><button type="button" class="secondary" data-sim="7">Sim 7 days</button><button type="button" class="secondary" data-sim="15">Sim 15 days</button><button type="button" class="secondary" data-sim="30">Sim to Day 30</button></div><p id="simulationStatus" role="status"></p>';document.querySelector('.action-area').append(sim);
+ screens.park.append(scene,action);
+ const sim=document.createElement('details');sim.id='simulationOptions';sim.innerHTML='<summary>⏩ Simulate ahead</summary><p>Keep current prices and marketing for each day. Stops at bankruptcy, Day 30, or a new fatal incident.</p><div class="sim-actions"><button type="button" class="secondary" data-sim="7">Sim 7 days</button><button type="button" class="secondary" data-sim="15">Sim 15 days</button><button type="button" class="secondary" data-sim="30">Sim to Day 30</button></div><p id="simulationStatus" role="status"></p>';action.append(sim);
  sim.querySelectorAll('[data-sim]').forEach(b=>b.addEventListener('click',()=>simulateDays(Number(b.dataset.sim))));
  const goal=document.createElement('div');goal.className='budget-box';goal.innerHTML='<strong id="seasonGoal" role="status"></strong><p><label for="difficulty">Next season difficulty </label><select style="font:inherit;padding:8px;max-width:100%" id="difficulty"><option value="easy" selected>Easy</option><option value="normal">Normal</option><option value="expert">Expert</option></select></p><p id="difficultyNote"></p>';const progress=document.createElement('section');progress.id='goalProgress';progress.className='goal-progress';goal.querySelector('#seasonGoal').after(progress);screens.park.prepend(goal);goal.querySelector('select').addEventListener('change',()=>render());
  const happy=document.createElement('section');happy.className='stat';happy.innerHTML='<div class="label">😊 Guest happiness</div><div id="happinessValue" class="value">70 / 100</div><p id="happinessReason"></p>';screens.park.prepend(happy);
  const fixed=document.createElement('p');fixed.id='fixedCosts';fixed.setAttribute('aria-live','polite');screens.park.append(fixed);const detail=document.createElement('details');detail.className='budget-box';detail.innerHTML='<summary>Daily overhead breakdown</summary><div id="overheadDetail"></div>';screens.park.append(detail);
  const tip=document.createElement('p');tip.textContent='Set prices → choose an investment → open the park. Review your results in Reports.';screens.park.prepend(tip);
  const overlay=document.createElement('div');overlay.id='incidentOverlay';overlay.className='incident-overlay';overlay.hidden=true;overlay.setAttribute('role','alert');overlay.innerHTML='<svg viewBox="0 0 120 100" class="incident-symbol" aria-hidden="true"><path d="M60 5L115 92H5Z" fill="#a50e20" stroke="#ff6a72" stroke-width="6"/><path d="M60 30V58" stroke="white" stroke-width="9"/><circle cx="60" cy="75" r="5" fill="white"/></svg><h2>FATAL RIDE INCIDENT</h2><p id="incidentMessage"></p><strong>PARK CLOSED</strong><p id="closureStatus"></p><button type="button" id="pauseAlert">Pause alert animation</button>';scene.querySelector('.park-scene').append(overlay);overlay.querySelector('button').addEventListener('click',()=>{state.alertMotionPaused=!state.alertMotionPaused;save();renderIncident()});
- scene.id='parkViewPanel';goal.id='goalTracker';detail.id='overheadPanel';screens.park.replaceChildren(tip,scene,document.querySelector('.action-area'),fixed,detail,happy,goal);
+ scene.id='parkViewPanel';goal.id='goalTracker';detail.id='overheadPanel';screens.park.replaceChildren(tip,scene,action,fixed,detail,happy,goal);
  screens.prices.append(pricing);screens.build.append(ridesPanel,upgradesPanel);screens.reports.append(report,history,totals);
  layout.replaceChildren(...Object.values(screens));layout.before(nav);setupVisitorRoutes();
 }

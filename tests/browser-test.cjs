@@ -4,7 +4,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1366,height:900},acceptDownloads:true});
  await page.addInitScript(()=>{Math.random=()=>.99});
- const errors=[];page.on('pageerror',e=>errors.push(e.stack));
+ const errors=[];page.on('pageerror',e=>{errors.push(e.stack);console.error('Browser error:',e.stack)});
  const go=async id=>page.locator('#nav-'+id).click();
  const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('apmSave')));
  const namePark=async(name='Rogers Adventure Park')=>{if(await page.locator('#parkNameDialog').isVisible()){await page.locator('#parkNameInput').fill(name);await page.locator('#parkNameForm button').click()}};
