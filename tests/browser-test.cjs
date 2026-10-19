@@ -16,7 +16,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await page.keyboard.press('Escape');assert(await page.locator('#parkNameDialog').isVisible());
  await namePark('Rogers & Kids <Adventure>');assert.equal(await page.locator('.park-gate').innerText(),'Rogers & Kids <Adventure>');assert.equal(await page.locator('.park-gate img').count(),0);
  await page.reload();assert(!(await page.locator('#parkNameDialog').isVisible()));assert.match(await page.locator('header h1').innerText(),/Rogers & Kids/);
- 
+
  assert(await page.locator('#openBtn').isVisible());assert.equal(await page.locator('.park-map').count(),1);assert(await page.locator('.park-map path').count()>25);
  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.map-wheel').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
  for(const id of ['prices','build','reports','park']){await go(id);assert(await page.locator('#screen-'+id).isVisible())}
